@@ -1,0 +1,30 @@
+{
+  "_note": "SLOT CẤU HÌNH MUSE. Phase này chưa viết rule chi tiết. Điền muse.url + login check + bridge selector khi có thông tin tài khoản Muse bàn giao. Không đặt mật khẩu trong file này.",
+  "version": 1,
+  "muse": {
+    "name": "Muse",
+    "url": "",
+    "login": {
+      "logged_in_url_contains": [],
+      "logged_out_url_contains": [],
+      "logged_in_selectors": [],
+      "logged_out_selectors": [],
+      "cookie_names": []
+    },
+    "bridge": {
+      "mode": "manual",
+      "new_chat_url": "",
+      "input_selector": "",
+      "send_selector": "",
+      "response_selector": "",
+      "wait_timeout_ms": 180000
+    }
+  },
+  "rule": {
+    "prompt": "",
+    "version": 0
+  },
+  "test_options": {
+    "enable_sample_plan": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "title": "Plan lỗi dùng để kiểm thử validation",
+  "segments": [
+    {
+      "comment_id": "demo_c1",
+      "text": "Chó nhà tôi cũng vậy, nhưng tôi tự viết lại câu này.",
+      "meme_id": "meme_khong_ton_tai",
+      "meme_duration": 2.4,
+      "sfx_id": "sfx_khong_ton_tai"
+    },
+    {
+      "comment_id": "demo_khong_ton_tai",
+      "text": "Bình luận này không có trong input.",
+      "meme_id": "meme_demo_cat_judge",
+      "meme_duration": 2.2,
+      "sfx_id": "sfx_demo_whoosh"
+    }
+  ],
+  "music_id": "music_khong_ton_tai",
+  "caption": "Không được render.",
+  "hashtags": ["#invalid"]
+}

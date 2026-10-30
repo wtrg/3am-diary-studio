@@ -1,0 +1,60 @@
+{
+  "post": {
+    "post_id": "demo_post_3am_dog_cat",
+    "url": "https://www.threads.com/@meo.va.cho/post/DEMO3AM01",
+    "author": "meo.va.cho",
+    "time": "2026-10-27T03:12:00.000Z",
+    "text": "3 giờ sáng, con chó nhà tôi đứng im nhìn vào góc tường suốt 20 phút. Tôi hỏi nó nhìn gì, nó quay lại nhìn tôi rồi tiếp tục nhìn. Mèo thì ngồi trên nóc tủ quan sát hai đứa tôi.",
+    "likes": 12400,
+    "comments_count": 318,
+    "shares_count": 642,
+    "source": "demo"
+  },
+  "comments": [
+    {
+      "comment_id": "demo_c1",
+      "author": "nha.cho.kho",
+      "time": "2026-10-27T03:19:00.000Z",
+      "text": "Chó nhà tôi cũng vậy. Sau đó tôi phát hiện có con thằn lằn sau tủ.",
+      "likes": 1284,
+      "comments_count": 32,
+      "shares_count": 7
+    },
+    {
+      "comment_id": "demo_c2",
+      "author": "meo.boss",
+      "time": "2026-10-27T03:24:00.000Z",
+      "text": "Mèo đang nghĩ: hai đứa này sắp bị gì rồi.",
+      "likes": 892,
+      "comments_count": 18,
+      "shares_count": 4
+    },
+    {
+      "comment_id": "demo_c3",
+      "author": "3am.survivor",
+      "time": "2026-10-27T03:31:00.000Z",
+      "text": "Đừng nhìn theo hướng nó nhìn. Bạn sẽ hối hận.",
+      "likes": 2137,
+      "comments_count": 51,
+      "shares_count": 19
+    },
+    {
+      "comment_id": "demo_c4",
+      "author": "dogmom.vn",
+      "time": "2026-10-27T03:47:00.000Z",
+      "text": "Tôi tưởng chỉ nhà tôi mới có hiện tượng này =))",
+      "likes": 341,
+      "comments_count": 9,
+      "shares_count": 2
+    },
+    {
+      "comment_id": "demo_c5",
+      "author": "binh.yen",
+      "time": "2026-10-27T04:02:00.000Z",
+      "text": "Có khi nó nghe thấy tiếng trong tường.",
+      "likes": 667,
+      "comments_count": 14,
+      "shares_count": 3
+    }
+  ]
+}

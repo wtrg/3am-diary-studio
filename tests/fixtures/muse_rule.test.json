@@ -1,0 +1,30 @@
+{
+  "_note": "CHỈ DÙNG CHO AUTOMATED TEST. Không phải cấu hình bán hàng. Trỏ vào local Muse test portal.",
+  "version": 1,
+  "muse": {
+    "name": "Muse Test Portal",
+    "url": "http://127.0.0.1:9444/",
+    "login": {
+      "logged_in_url_contains": [],
+      "logged_out_url_contains": [],
+      "logged_in_selectors": ["#muse-app"],
+      "logged_out_selectors": ["#muse-login"],
+      "cookie_names": ["muse_test_session"]
+    },
+    "bridge": {
+      "mode": "auto",
+      "new_chat_url": "",
+      "input_selector": "#muse-input",
+      "send_selector": "#muse-send",
+      "response_selector": "#muse-response",
+      "wait_timeout_ms": 20000
+    }
+  },
+  "rule": {
+    "prompt": "",
+    "version": 0
+  },
+  "test_options": {
+    "enable_sample_plan": true
+  }
+}

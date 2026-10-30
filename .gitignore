@@ -1,0 +1,11 @@
+node_modules/
+.devdata/
+.live-verify/
+.scratch/
+vibe_images/
+artifacts/
+BAO_CAO_GUI_MUSE.md
+*.log
+.env
+.env.*
+*.pem

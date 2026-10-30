@@ -1,0 +1,17 @@
+{
+  "name": "three-am-diary-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Frontend local cho tool dựng video 3AM Diary: Threads -> kho file -> Muse -> hàng đợi -> MP4",
+  "main": "app/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "assets:demo": "node scripts/build-demo-assets.mjs",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "devDependencies": {
+    "electron": "34.5.8"
+  }
+}

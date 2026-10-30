@@ -1,0 +1,75 @@
+{
+  "data": {
+    "data": {
+      "post": {
+        "code": "DEMO123",
+        "pk": "111",
+        "caption": { "text": "Bài gốc: chó nhà tôi nhìn vào góc tường lúc 3 giờ sáng." },
+        "user": { "username": "main_author", "full_name": "Main Author" },
+        "like_count": 1200,
+        "taken_at": 1720000000,
+        "text_post_app_info": { "direct_reply_count": 5, "reshare_count": 4 },
+        "replies": {
+          "edges": [
+            {
+              "node": {
+                "post": {
+                  "code": "R1",
+                  "pk": "222",
+                  "caption": { "text": "Bình luận một\ngiữ nguyên xuống dòng." },
+                  "user": { "username": "alice" },
+                  "like_count": 55,
+                  "taken_at": 1720000100,
+                  "text_post_app_info": { "is_reply": true, "direct_reply_count": 0, "reshare_count": 1 }
+                }
+              }
+            },
+            {
+              "node": {
+                "post": {
+                  "code": "R2",
+                  "pk": "333",
+                  "caption": { "text": "Mèo nhà tôi cũng nhìn như vậy." },
+                  "user": { "username": "bob" },
+                  "like_count": 17,
+                  "taken_at": 1720000200,
+                  "text_post_app_info": { "is_reply": true, "direct_reply_count": 2, "reshare_count": 0 }
+                }
+              }
+            },
+            {
+              "node": {
+                "post": {
+                  "code": "R3",
+                  "pk": "444",
+                  "caption": { "text": "Đừng nhìn theo hướng nó nhìn." },
+                  "user": { "username": "carol" },
+                  "like_count": 999,
+                  "taken_at": 1720000300,
+                  "text_post_app_info": { "is_reply": true, "direct_reply_count": 1 }
+                }
+              }
+            }
+          ]
+        },
+        "suggested_posts": {
+          "edges": [
+            {
+              "node": {
+                "post": {
+                  "code": "SUG1",
+                  "pk": "555",
+                  "caption": { "text": "Bài gợi ý không phải bình luận." },
+                  "user": { "username": "suggested_user" },
+                  "like_count": 50000,
+                  "taken_at": 1720000400,
+                  "text_post_app_info": { "is_reply": false }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

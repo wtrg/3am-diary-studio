@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src https: http://127.0.0.1:*"
+    />
+    <title>3AM Diary Studio</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <div id="boot" class="boot-screen">
+      <div class="boot-mark">3AM</div>
+      <div class="boot-title">3AM Diary Studio</div>
+      <div class="boot-sub">Đang khởi động tool local...</div>
+      <div class="spinner" aria-label="Đang tải"></div>
+    </div>
+
+    <div id="app" class="app-shell" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">3<span>AM</span></div>
+          <div class="brand-text">
+            <strong>Diary Studio</strong>
+            <span>Local video tool</span>
+          </div>
+        </div>
+
+        <nav class="step-nav" aria-label="Các bước">
+          <button class="step-item" data-action="go-step" data-step="1">
+            <span class="step-num">01</span>
+            <span class="step-body"><strong>Cào bài Threads</strong><small>Bài gốc + bình luận</small></span>
+            <span class="step-dot" data-step-dot="1"></span>
+          </button>
+          <button class="step-item" data-action="go-step" data-step="2">
+            <span class="step-num">02</span>
+            <span class="step-body"><strong>Kho file</strong><small>Meme · nhạc · SFX · nền</small></span>
+            <span class="step-dot" data-step-dot="2"></span>
+          </button>
+          <button class="step-item" data-action="go-step" data-step="3">
+            <span class="step-num">03</span>
+            <span class="step-body"><strong>Muse &amp; kế hoạch</strong><small>Duyệt trước khi dựng</small></span>
+            <span class="step-dot" data-step-dot="3"></span>
+          </button>
+          <button class="step-item" data-action="go-step" data-step="4">
+            <span class="step-num">04</span>
+            <span class="step-body"><strong>Hàng đợi &amp; xuất</strong><small>MP4 · lịch sử</small></span>
+            <span class="step-dot" data-step-dot="4"></span>
+          </button>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="sidebar-connection" id="sidebarConnection"></div>
+
+        <div class="sidebar-actions">
+          <button class="btn btn-ghost btn-sm" data-action="demo-load">Nạp dữ liệu demo</button>
+          <button class="btn btn-ghost btn-sm" data-action="open-data-folder">Mở thư mục dữ liệu</button>
+          <button class="btn btn-ghost btn-sm btn-quiet" data-action="quit-app">Tắt ứng dụng</button>
+        </div>
+        <div class="sidebar-note">Chỉ chạy local · Không tự đăng video</div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-title">
+            <div class="eyebrow" id="pageEyebrow">BƯỚC 1 / 4</div>
+            <h1 id="pageTitle">Cào bài Threads</h1>
+          </div>
+          <div class="topbar-chips">
+            <span class="chip" id="netChip"><span class="dot"></span><span>Đang kiểm tra</span></span>
+            <button class="chip chip-button" data-action="go-step" data-step="3" id="museChip">Muse: chưa đăng nhập</button>
+            <button class="chip chip-button chip-renderer" data-action="show-renderer-info" id="rendererChip">Renderer demo</button>
+          </div>
+        </header>
+
+        <div id="globalBanner" class="global-banner"></div>
+        <section id="view" class="view" aria-live="polite"></section>
+        <footer class="footer">
+          <span>576 × 1024 · 30 fps · 60–90 giây</span>
+          <span class="footer-mid">Mọi quyết định nội dung đi qua Muse hoặc người dùng sửa tay</span>
+          <span id="footerVersion">local · phase frontend</span>
+        </footer>
+      </main>
+    </div>
+
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
+    <div id="modalHost" class="modal-host" hidden></div>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
