@@ -83,6 +83,8 @@ function createHarness(t) {
   const demo = new DemoService({ rootDir: root, library, workspace });
   const fakeMuse = createFakeMuse();
   const { queue, control } = createFakeQueue(dir, library);
+  const discoveryControl = { calls: [] };
+  const threadsControl = { loggedIn: false };
   const ruleSlot = {
     samplePlanEnabled: () => true,
     reload: () => ({}),
@@ -98,7 +100,37 @@ function createHarness(t) {
     ruleSlot,
     demo,
     scrapeThreads: async () => ({ ok: false, code: 'LOGIN_REQUIRED', message: 'test login required' }),
-    threadsLoginState: async () => ({ loggedIn: false, checked: true }),
+    discoverThreads: async (options) => {
+      discoveryControl.calls.push(options);
+      return {
+        ok: true,
+        candidates: [
+          {
+            post_id: 'disco1',
+            code: 'disco1',
+            author: 'test_cat',
+            time: new Date().toISOString(),
+            text: 'Mèo test mới',
+            likes: 10,
+            comments_count: 2,
+            shares_count: 1,
+            age_hours: 1,
+            trend_score: 9.5,
+            relevance: 1,
+            matched_terms: ['meo'],
+            has_comments: true,
+            url: 'https://www.threads.com/@test_cat/post/disco1',
+          },
+        ],
+        warnings: ['test warning'],
+        stats: { selected: 1 },
+        meta: { ...options, searchUrl: 'https://www.threads.com/search?q=test' },
+        requested: options.limit,
+        found: 1,
+        tokens: ['meo'],
+      };
+    },
+    threadsLoginState: async () => ({ loggedIn: threadsControl.loggedIn, checked: true }),
     openThreadsLoginWindow: async () => ({ opened: true }),
     isOnline: () => true,
     quit: () => {},
@@ -129,7 +161,7 @@ function createHarness(t) {
     }
     return { status: response.status, data, headers: response.headers };
   };
-  return { server, dir, library, workspace, demo, fakeMuse, queue, control, request, base };
+  return { server, dir, library, workspace, demo, fakeMuse, queue, control, discoveryControl, threadsControl, request, base };
 }
 
 async function waitForJob(harness, jobId, status, timeout = 6000) {
@@ -263,6 +295,44 @@ test('scrape failures are surfaced without overwriting the current post', async 
   assert.equal(scrape.data.error.code, 'LOGIN_REQUIRED');
   const after = await h.request('/api/workspace');
   assert.equal(after.data.workspace.post.post_id, before.data.workspace.post.post_id);
+});
+
+test('discovery defaults to anonymous, returns candidates, and gates account mode', async (t) => {
+  const h = createHarness(t);
+  await h.server.start();
+
+  const anonymous = await h.request('/api/threads/discover', {
+    method: 'POST',
+    json: { topic: 'mèo', limit: 3, maxAgeHours: 72, sort: 'trend', mode: 'auto' },
+  });
+  assert.equal(anonymous.status, 200);
+  assert.equal(anonymous.data.result.candidates.length, 1);
+  assert.equal(anonymous.data.result.candidates[0].code, 'disco1');
+  assert.equal(h.discoveryControl.calls[0].mode, 'guest');
+  assert.equal(h.discoveryControl.calls[0].topic, 'mèo');
+  assert.equal(h.discoveryControl.calls[0].limit, 3);
+
+  const accountLocked = await h.request('/api/threads/discover', {
+    method: 'POST',
+    json: { topic: 'mèo', limit: 3, maxAgeHours: 72, mode: 'account' },
+  });
+  assert.equal(accountLocked.status, 401);
+  assert.equal(accountLocked.data.error.code, 'THREADS_LOGIN_REQUIRED');
+
+  h.threadsControl.loggedIn = true;
+  const accountOpen = await h.request('/api/threads/discover', {
+    method: 'POST',
+    json: { topic: 'mèo', limit: 2, maxAgeHours: 48, mode: 'account' },
+  });
+  assert.equal(accountOpen.status, 200);
+  assert.equal(h.discoveryControl.calls.at(-1).mode, 'account');
+
+  const shortTopic = await h.request('/api/threads/discover', {
+    method: 'POST',
+    json: { topic: 'a', limit: 3, maxAgeHours: 72, mode: 'guest' },
+  });
+  assert.equal(shortTopic.status, 400);
+  assert.equal(shortTopic.data.error.code, 'INVALID_TOPIC');
 });
 
 test('request without app token is rejected', async (t) => {

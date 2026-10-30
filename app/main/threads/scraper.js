@@ -4,11 +4,26 @@ const { BrowserWindow, session } = require('electron');
 const { parseThreadsUrl, collectFromPayloads, safeParseJson, payloadsFromPageScripts } = require('./parse');
 
 const PARTITION = 'persist:threads';
+const GUEST_PARTITION = 'threads_guest';
 const CHROME_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36';
 
+function normalizeMode(mode) {
+  return mode === 'guest' ? 'guest' : 'account';
+}
+
+function partitionForMode(mode) {
+  return normalizeMode(mode) === 'guest' ? GUEST_PARTITION : PARTITION;
+}
+
 function threadsSession() {
   const ses = session.fromPartition(PARTITION);
+  ses.setUserAgent(CHROME_UA, 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7');
+  return ses;
+}
+
+function threadsSessionForMode(mode) {
+  const ses = session.fromPartition(partitionForMode(mode));
   ses.setUserAgent(CHROME_UA, 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7');
   return ses;
 }
@@ -119,6 +134,7 @@ function isLoginWallUrl(url) {
 
 async function scrapeThreads(rawUrl, options = {}) {
   const parsed = parseThreadsUrl(rawUrl);
+  const mode = normalizeMode(options.mode);
   const log = options.log || (() => {});
   const timeoutMs = options.timeoutMs || 45000;
   const deadline = Date.now() + timeoutMs;
@@ -131,7 +147,8 @@ async function scrapeThreads(rawUrl, options = {}) {
   let timedOut = false;
   let networkEnable = null;
 
-  const ses = threadsSession();
+  const ses = threadsSessionForMode(mode);
+  const partition = partitionForMode(mode);
   const timer = setTimeout(() => {
     timedOut = true;
     try {
@@ -150,7 +167,7 @@ async function scrapeThreads(rawUrl, options = {}) {
       skipTaskbar: true,
       backgroundColor: '#0b1020',
       webPreferences: {
-        partition: PARTITION,
+        partition,
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
@@ -354,10 +371,16 @@ async function scrapeThreads(rawUrl, options = {}) {
 
 module.exports = {
   PARTITION,
+  GUEST_PARTITION,
   CHROME_UA,
+  normalizeMode,
+  partitionForMode,
   threadsSession,
+  threadsSessionForMode,
   threadsLoginState,
   openThreadsLoginWindow,
   scrapeThreads,
   isLoginWallUrl,
+  delay,
+  withTimeout,
 };

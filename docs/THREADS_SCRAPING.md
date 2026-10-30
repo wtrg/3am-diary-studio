@@ -130,3 +130,37 @@ Kết luận:
 - Cấu hình selector/endpoint trong file riêng để cập nhật nhanh khi Threads đổi.
 - Test live với tài khoản Threads thật, ghi lại fixture từ payload thật (đã ẩn thông tin) để hồi quy.
 - Nếu Threads mở API chính thức phù hợp, thay adapter sau interface `scrapeThreads(url)` mà không đổi UI.
+
+## 7. Discovery theo chủ đề (bổ sung 2026-10-31)
+
+### Cách hoạt động
+
+- Người dùng nhập chủ đề, số bài (1–20), khoảng thời gian 24/48/72/168 giờ, ưu tiên Xu hướng/Mới nhất, chế độ Ẩn danh/Tài khoản.
+- Server mở `https://www.threads.com/search?q=<topic>&serp_type=default|recent` trong Chromium ẩn, cuộn tối đa 7 lượt, thu payload GraphQL/JSON nhúng.
+- Parser `discovery.js` lọc:
+  - chỉ node thuộc `searchResults`, bỏ `quoted_attachment_post`, `share_info`, suggested/related;
+  - bỏ reply, bài thiếu author/code/text, bài thiếu `taken_at`, bài cũ hơn cửa sổ đã chọn, bài không khớp từ khóa;
+  - dedupe theo code, giữ metrics cao nhất.
+- Điểm xếp hạng (không phải trend chính thức của Threads):
+  `log10(1 + likes + comments*2 + shares*3)*2.1 + freshness*4 + relevance*2`.
+  Người dùng có thể đổi sang sort theo thời gian đăng.
+- Trả tối đa 20 ứng viên; **không tải bình luận** cho đến khi người dùng chọn 1 bài. Khi chọn, endpoint scrape chạy lại với đúng mode (guest/account).
+- Một discovery tại một thời điểm; timeout 40s trong scraper, 55s ở API.
+
+### Chế độ ẩn danh và tài khoản
+
+- **Ẩn danh**: `session.fromPartition('threads_guest')` (in-memory), không login. Chỉ đọc nội dung public. Không phải IP anonymity/antidetect; không vượt login wall/rate limit.
+- **Tài khoản**: `persist:threads` sau khi người dùng đăng nhập qua cửa sổ Threads. Nếu chưa login, API trả 401 `THREADS_LOGIN_REQUIRED`; UI hiện nút đăng nhập.
+- Threads logged-out search thường chỉ trả một phần rồi hiện “Log in for more”. Tool hiển thị cảnh báo này và số bài thực tế, không thay thế bằng dữ liệu bịa.
+
+### Kết quả live (2026-10-31)
+
+- Chủ đề `mèo`, 72h, ẩn danh: lần đầu **3/5** bài mới (13 bài cũ bị loại, 1 sai chủ đề, 1 trích dẫn), lần sau **5/5** bài mới.
+- Chọn bài đầu tiên (2,2K like, 231 comment): tải được **12/231 bình luận** ẩn danh; UI hiện cảnh báo partial. Ảnh: `artifacts/e2e/12-discovery.png`, `13-discovery-selected.png`.
+- Chế độ Tài khoản chưa login bị chặn đúng ở API/UI; chưa test live với tài khoản Threads thật (không có credential trong phiên này).
+
+### Giới hạn / tuân thủ
+
+- Anonymous search phụ thuộc chính sách Threads; có thể trả ít hoặc login wall. Account mode cần test với tài khoản/Region người mua.
+- Không scrape nội dung private, không tự đăng, không tương tác, không vượt CAPTCHA/rate limit; chỉ dùng nội dung public và có quyền sử dụng.
+- Nên thêm cache/rate limit theo người dùng trước khi bán; hiện có giới hạn 20 bài/lần và một discovery đồng thời.

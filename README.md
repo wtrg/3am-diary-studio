@@ -13,7 +13,8 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 | Contract input/output + validate | Đã xong, chặn ID lạ / text sai |
 | Kho file (id bất biến, tag, preview, CRUD) | Đã xong |
 | Trình duyệt Muse tích hợp (`<webview>`) | Đã xong; cần điền `config/muse_rule.json` thật |
-| Threads scraper + login Threads | Đã xong adapter, cần phiên Threads để cào live |
+| Threads scraper + login Threads | Đã xong, có live smoke |
+| Tìm bài theo chủ đề (discovery) | Đã xong: ẩn danh/tài khoản, lọc bài mới, điểm xu hướng |
 | Hàng đợi + xem/tải MP4 + lịch sử + retry | Đã xong |
 | Renderer cuối (voice/TTS, clip meme, style cuối) | **Chưa** — đang là renderer demo |
 | Rule chi tiết cho Muse | **Chưa** — chỉ có slot config |
@@ -28,7 +29,7 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 - **Wifi** khi dùng Muse/Threads.
 - **Muse account + URL/selector thật** để mở khóa Muse (xem mục 4).
 - **ffmpeg + ffprobe** trên PATH cho renderer demo và đo thời lượng file. Nếu thiếu, job báo lỗi rõ và giữ nguyên kế hoạch.
-- Tài khoản Threads chỉ cần khi cào bài; dữ liệu demo không cần.
+- Tài khoản Threads cần cho chế độ **Tài khoản Threads** (bình luận đầy đủ hơn) hoặc khi Threads yêu cầu login. Chế độ **Ẩn danh** không cần tài khoản; dữ liệu demo cũng không cần.
 
 ### Mở nhanh (đã cài trên máy test)
 
@@ -174,10 +175,30 @@ Background video được đưa vào `library` để validator kiểm tra `setti
 
 Đề xuất và chi tiết kỹ thuật: [`docs/THREADS_SCRAPING.md`](docs/THREADS_SCRAPING.md).
 
-Tóm tắt: dùng **Electron Chromium ẩn** + partition `persist:threads`, đọc payload GraphQL/JSON nhúng, tự cuộn/mở bình luận, parser thuần (có unit test). Ngày 2026-10-31, live scrape **qua chính form Module 1** trên một bài public đã lấy được **7/13 bình luận**, đúng bài gốc, có cảnh báo dữ liệu chưa đầy đủ; không có dữ liệu bịa. Ảnh: `artifacts/e2e/11-live-threads.png`. Threads tùy khu vực/tài khoản có thể yêu cầu đăng nhập — tool có cửa sổ **Đăng nhập Threads** riêng và báo lỗi rõ. Không tự đăng bài. Chạy smoke:
+### Tìm bài mới theo chủ đề (discovery)
+
+Ở Bước 1, khối **“Tìm bài mới theo chủ đề”** cho phép:
+
+| Trường | Ý nghĩa |
+|---|---|
+| Chủ đề | Từ khóa người dùng nhập, ví dụ `mèo`, `chó mèo`, `3 giờ sáng`, `công sở`. Có chip gợi ý. |
+| Số bài | 1–20 bài ứng viên. Tool trả đúng số tìm được, không bịa thêm. |
+| Bài mới trong | 24 giờ / 48 giờ / 3 ngày / 7 ngày. Bài cũ hơn hoặc không rõ ngày bị loại. |
+| Ưu tiên | **Xu hướng** (tương tác + độ mới + độ khớp) hoặc **Mới nhất** (thời gian đăng). |
+| Phiên Threads | **Tự động** (tài khoản nếu đã login, ngược lại ẩn danh), **Ẩn danh**, **Tài khoản Threads**. |
+
+- **Ẩn danh** dùng session in-memory `threads_guest`, không đăng nhập, chỉ đọc nội dung public. Không phải ẩn IP/antidetect; không vượt login/rate limit.
+- **Tài khoản** dùng `persist:threads` sau khi login và thường lấy được nhiều kết quả/bình luận hơn. Nếu chưa login, tool chặn và hiện nút đăng nhập.
+- Kết quả là **danh sách ứng viên** (author/time/text/like/comment/share/age/điểm xu hướng). Tool **chưa tải bình luận** cho đến khi người dùng bấm **Dùng bài này & tải bình luận** — tối ưu cho máy yếu và tránh cào thừa.
+- Bộ lọc loại reply, bài trích dẫn/gợi ý, bài sai chủ đề, bài cũ/không rõ ngày; dedupe theo code; cap 20 và chỉ chạy một discovery tại một thời điểm.
+- Live 2026-10-31: chủ đề `mèo`, 72h, ẩn danh — lần đầu 3/5, lần sau 5/5 bài mới; chọn 1 bài tải 12/231 comments với cảnh báo partial.
+- Threads logged-out search có thể chặn “Log in for more”; tool cảnh báo và không tự tạo bài. Đăng nhập Threads để tăng kết quả/bình luận.
+
+Tóm tắt: dùng **Electron Chromium ẩn** + partition `threads_guest` (ẩn danh, in-memory) hoặc `persist:threads` (tài khoản), đọc payload GraphQL/JSON nhúng, tự cuộn/mở bình luận, parser thuần (có unit test). Có thêm discovery theo chủ đề, lọc tuổi/độ liên quan và xếp điểm xu hướng. Ngày 2026-10-31, live scrape **qua chính form Module 1** trên một bài public đã lấy được **7/13 bình luận**, đúng bài gốc, có cảnh báo dữ liệu chưa đầy đủ; không có dữ liệu bịa. Ảnh: `artifacts/e2e/11-live-threads.png`. Threads tùy khu vực/tài khoản có thể yêu cầu đăng nhập — tool có cửa sổ **Đăng nhập Threads** riêng và báo lỗi rõ. Không tự đăng bài. Chạy smoke:
 
 ```bash
 node_modules/electron/dist/electron.exe scripts/live-threads-smoke.js "<threads-url>"
+node_modules/electron/dist/electron.exe scripts/live-threads-discover.js "mèo" 5 72
 ```
 
 ## 7. Renderer slot
@@ -190,12 +211,12 @@ node_modules/electron/dist/electron.exe scripts/live-threads-smoke.js "<threads-
 ## 8. Kiểm thử
 
 ```bash
-npm test          # 24 unit + integration test: contract, library, parser, gate, job retry, download
+npm test          # 31 unit + integration test: contract, library, parser, discovery, gate, job retry, download
 npm run test:e2e  # Electron thật + local Muse test portal + render MP4 thật
 ```
 
 E2E sẽ tạo screenshot và MP4 tại `artifacts/e2e/` (thư mục này **không commit lên repo public**; đặc biệt ảnh live Threads chứa nội dung bên thứ ba):
-`01-gate-locked.png`, `03-invalid-plan-blocked.png`, `04-muse-unlocked.png`, `05-muse-plan.png`, `06-approved.png`, `07-job-done.png`, `11-live-threads.png`, `demo-final.mp4`.
+`01-gate-locked.png`, `03-invalid-plan-blocked.png`, `04-muse-unlocked.png`, `05-muse-plan.png`, `06-approved.png`, `07-job-done.png`, `11-live-threads.png`, `12-discovery.png`, `13-discovery-selected.png`, `demo-final.mp4`.
 
 Checklist nghiệm thu chi tiết: [`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md).
 
@@ -205,7 +226,8 @@ Test Muse portal (`tests/muse-portal/server.js` + `tests/fixtures/muse_rule.test
 
 - Chưa có URL Muse thật; cần bên bán/người dùng cấu hình `muse_rule.json`. Khi có, kiểm tra login/logout selectors bằng tài khoản thật.
 - Rule Muse chi tiết chưa viết; đang là slot.
-- Threads API/DOM thay đổi có thể làm scraper hỏng; có timeout, lỗi rõ, fixture test. Live smoke ngày 2026-10-31 lấy được 7/13 bình luận công khai; vẫn cần kiểm tra với tài khoản/Region của người mua trước khi bán.
+- Threads API/DOM thay đổi có thể làm scraper hỏng; có timeout, lỗi rõ, fixture test. Live smoke ngày 2026-10-31 lấy được 7/13 bình luận công khai; discovery ẩn danh lấy 3/5 và 5/5 bài mới ở hai lần thử. Vẫn cần kiểm tra với tài khoản/Region của người mua trước khi bán.
+- Discovery ẩn danh bị Threads giới hạn tự nhiên (không phải tool cố ý cắt): search logged-out có thể chỉ trả một phần và chặn “Log in for more”. Tool báo đúng số thực tế. Chế độ Tài khoản cần đăng nhập Threads; chưa kiểm thử live với tài khoản thật.
 - Renderer cuối, TTS tiếng Việt, xử lý clip meme, style/typography cuối, đóng gói installer và license là phase sau.
 - Tuân thủ điều khoản Threads/Muse và quyền nội dung khi vận hành thương mại. Tool không tự đăng bài, không vượt login/rate limit.
 

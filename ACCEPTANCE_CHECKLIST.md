@@ -10,7 +10,7 @@ npm test
 npm run test:e2e
 ```
 
-- `npm test`: 24/24 pass (contract, parser, library, API integration, gate server-side, job retry, download).
+- `npm test`: **31/31 pass** (contract, parser, discovery filter, library, API integration, gate server-side, job retry, download).
 - `npm run test:e2e`: PASS. Tự mở Electron + local Muse test portal, đi đủ luồng, xuất MP4 thật và tải lại.
 - Artifact: `artifacts/e2e/` (screenshots + `demo-final.mp4`).
 
@@ -76,11 +76,17 @@ npm run test:e2e
 | UI nhẹ, local | PASS | Vanilla JS, không framework, không build step |
 | 3 đường mở: lệnh, Desktop, Start Menu | PASS | `3am-diary-studio`, shortcut Desktop và Start Menu đều mở cửa sổ `3AM Diary Studio` visible; shortcut target = wscript + `scripts/launch.vbs` |
 | Live Threads scraper + frontend | PASS (một phần) | Live scrape 2026-10-31 **qua form Module 1**: bài gốc `faenight`, 7/13 bình luận, warning partial, ảnh `artifacts/e2e/11-live-threads.png`; không bịa. Cần chạy lại với account/Region người mua |
+| Discovery theo chủ đề — ẩn danh | PASS (live) | Chủ đề `mèo`, 72h, ẩn danh: 5/5 bài mới trong UI, bấm chọn 1 bài tải 12/231 bình luận; ảnh `artifacts/e2e/12-discovery.png`, `13-discovery-selected.png` |
+| Discovery lọc bài cũ / không rõ ngày | PASS | `buildCandidates` loại bài >72h, thiếu `taken_at`, reply, trích dẫn/gợi ý, sai từ khóa; stats live: 4 bài cũ + 3 sai chủ đề bị loại (lần chạy UI), 13 bài cũ bị loại (lần đầu) |
+| Discovery đúng số lượng / không bịa | PASS | Lần 3/5 hiển thị cảnh báo `3/5`, lần 5/5 đủ; tool không lấp thêm. Unit test zero-result cũng có warning |
+| Discovery chế độ Tài khoản | PASS (gate) | Server 401 `THREADS_LOGIN_REQUIRED` khi chưa login; UI hiện lỗi + nút Đăng nhập. Chưa test live với tài khoản Threads thật |
+| Discovery giới hạn tải | PASS | Max 20 bài; một discovery tại một thời điểm (`DISCOVERY_BUSY`); chỉ tải comments của bài được chọn |
+| Ẩn danh không vượt kiểm soát | PASS | Session in-memory `threads_guest`, không login; không proxy/antidetect/CAPTCHA bypass; Threads limit được hiển thị, không tự tạo dữ liệu |
 
 ## 5. Ghi chú trung thực / việc còn lại
 
 1. **Muse thật chưa được cấu hình** vì chưa có URL/selector/tài khoản thật trong phiên này. Toàn bộ cơ chế login gate/webview/bridge đã được test bằng **Muse test portal local** (chỉ test). Khi có thông tin thật, điền `config/muse_rule.json` và chạy lại checklist login/logout.
-2. **Threads live** đã chạy được live scrape qua form frontend khi chưa login (7/13 bình luận, warning partial; ảnh 11). Vẫn cần test với account/Region người mua vì Threads có thể login wall hoặc trả ít hơn. Timeout cứng đã sửa lỗi treo do `Network.enable`; parser/fixture tests pass.
+2. **Threads live/discovery** đã chạy qua form frontend khi chưa login: single post 7/13 comments; discovery chủ đề `mèo` 5/5 bài mới, chọn bài tải 12/231 comments. Vẫn cần test với account/Region người mua vì Threads có thể login wall hoặc trả ít hơn. Timeout cứng đã sửa lỗi treo do `Network.enable`; parser/fixture/discovery tests pass.
 3. **Renderer demo** chưa có giọng đọc/TTS, chưa hỗ trợ clip meme, style chưa phải renderer cuối. Renderer cuối là phase sau.
 4. **Đóng gói thương mại** (installer, bản quyền, ffmpeg bundle, auto-update) chưa làm trong phase frontend.
 5. Rủi ro tuân thủ: cần bảo đảm quyền dùng tài khoản Muse/Threads và nội dung theo điều khoản nền tảng khi bán tool.

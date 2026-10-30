@@ -73,6 +73,20 @@ const state = {
   libraryStats: { meme: 0, music: 0, sfx: 0, background: 0 },
   libraryFilter: { kind: 'all', q: '', tag: '' },
   threadsSession: { loggedIn: false, checked: false },
+  threadsMode: 'auto',
+  discovery: {
+    topic: '',
+    limit: 5,
+    maxAgeHours: 72,
+    sort: 'trend',
+    loading: false,
+    candidates: [],
+    warnings: [],
+    stats: null,
+    meta: null,
+    error: null,
+    selectedCode: '',
+  },
   scrapeUrl: '',
   scraping: false,
   scrapeError: null,
@@ -217,6 +231,43 @@ function isOnlineNow() {
 
 function gateMessage() {
   return state.status.muse?.gateMessage || GATE_FALLBACK;
+}
+
+function threadsLoggedIn() {
+  return Boolean(state.threadsSession?.loggedIn);
+}
+
+function resolvedThreadsMode(requested = state.threadsMode) {
+  if (requested === 'guest' || requested === 'account') return requested;
+  return threadsLoggedIn() ? 'account' : 'guest';
+}
+
+function threadsModeLabel(mode = state.threadsMode) {
+  if (mode === 'guest') return 'Ẩn danh';
+  if (mode === 'account') return 'Tài khoản Threads';
+  return threadsLoggedIn() ? 'Tự động · tài khoản' : 'Tự động · ẩn danh';
+}
+
+function discoveryModeNote() {
+  if (state.threadsMode === 'guest') {
+    return 'Ẩn danh: không đăng nhập Threads. Threads có thể chỉ trả một phần kết quả/bình luận; tool sẽ báo rõ và không tự tạo thêm.';
+  }
+  if (state.threadsMode === 'account') {
+    return threadsLoggedIn()
+      ? 'Chế độ tài khoản: đang dùng phiên Threads đã đăng nhập; bình luận thường đầy đủ hơn.'
+      : 'Chế độ tài khoản cần đăng nhập Threads trước. Hãy đăng nhập hoặc chuyển sang Ẩn danh.';
+  }
+  return threadsLoggedIn()
+    ? 'Tự động: đang dùng phiên Threads đã đăng nhập.'
+    : 'Tự động: chưa đăng nhập Threads nên sẽ chạy ẩn danh. Đăng nhập để lấy thêm bình luận.';
+}
+
+function ageLabel(hours) {
+  const value = Number(hours);
+  if (!Number.isFinite(value) || value < 0) return '—';
+  if (value < 1) return 'dưới 1 giờ';
+  if (value < 24) return `${String(Math.round(value * 10) / 10).replace('.', ',')} giờ`;
+  return `${String(Math.round((value / 24) * 10) / 10).replace('.', ',')} ngày`;
 }
 
 function hasEffectiveApproval() {
@@ -995,6 +1046,174 @@ function workflowHtml() {
     </div>`;
 }
 
+function discoveryModeNoteHtml() {
+  const needLogin = state.threadsMode === 'account' && !threadsLoggedIn();
+  return `
+    <span class="dot ${threadsLoggedIn() ? 'text-green' : 'text-amber'}"></span>
+    <span>${esc(discoveryModeNote())}</span>
+    ${needLogin ? '<button class="btn btn-sm" data-action="open-threads-login">Đăng nhập Threads</button>' : ''}
+  `;
+}
+
+function candidateCardHtml(candidate, index) {
+  const selected = state.discovery.selectedCode === candidate.code;
+  const commentBadge = candidate.has_comments
+    ? `<span class="badge badge-cyan">${esc(fmtLikes(candidate.comments_count))} bình luận</span>`
+    : '<span class="badge">0 bình luận</span>';
+  return `
+    <article class="candidate-card ${selected ? 'is-selected' : ''}" data-candidate-id="${esc(candidate.code)}">
+      <div class="candidate-top">
+        <span class="candidate-rank">${String(index + 1).padStart(2, '0')}</span>
+        <div class="candidate-author">
+          <strong>@${esc(candidate.author)}</strong>
+          <span>${esc(fmtTime(candidate.time))} · ${esc(ageLabel(candidate.age_hours))} trước</span>
+        </div>
+        <span class="badge badge-violet">Xu hướng ${esc(String(candidate.trend_score).replace('.', ','))}</span>
+      </div>
+      <div class="candidate-text">${esc(candidate.text)}</div>
+      <div class="candidate-meta">
+        <span>${esc(fmtLikes(candidate.likes))} lượt thích</span>
+        ${commentBadge}
+        <span>${esc(fmtLikes(candidate.shares_count))} chia sẻ</span>
+        <span class="candidate-match">Khớp: ${esc((candidate.matched_terms || []).join(', ') || '—')}</span>
+      </div>
+      <div class="candidate-actions">
+        <a class="btn btn-sm btn-ghost" href="${esc(candidate.url)}" target="_blank" rel="noreferrer">Mở Threads ↗</a>
+        <button class="btn btn-sm ${selected ? 'btn-success' : 'btn-primary'}" data-action="use-candidate" data-code="${esc(candidate.code)}" data-url="${esc(candidate.url)}" ${state.discovery.loading || state.scraping ? 'disabled' : ''}>
+          ${selected ? 'Đã chọn bài này' : 'Dùng bài này & tải bình luận'}
+        </button>
+      </div>
+    </article>`;
+}
+
+function discoveryPanelHtml() {
+  const d = state.discovery;
+  const searchMeta = d.meta;
+  const warnings = [
+    ...(d.warnings || []),
+  ];
+  const mode = d.meta?.mode || resolvedThreadsMode();
+  const resultHead = searchMeta
+    ? `<div class="discovery-result-head">
+         <div>
+           <h4>Ứng viên từ Threads</h4>
+           <span class="small text-faint">Tìm "${esc(searchMeta.topic)}" · ${esc(searchMeta.mode === 'guest' ? 'ẩn danh' : 'tài khoản')} · trong ${esc(String(searchMeta.maxAgeHours))} giờ · ${esc(searchMeta.sort === 'recent' ? 'mới nhất' : 'xu hướng')}</span>
+         </div>
+         <span class="badge ${d.candidates.length ? 'badge-green' : 'badge-amber'}">${d.candidates.length}/${esc(String(searchMeta.limit))} bài</span>
+       </div>`
+    : '';
+  const modeNote = mode === 'guest'
+    ? 'Bạn đang xem bài public không đăng nhập. Bình luận của bài được chọn có thể thiếu; đăng nhập Threads để lấy thêm.'
+    : 'Bài ứng viên chỉ là danh sách để bạn chọn. Tool chỉ tải bình luận của đúng bài bạn bấm chọn.';
+  return `
+    <section class="panel discovery-panel" id="discoveryPanel">
+      <div class="panel-head">
+        <div>
+          <h3>Tìm bài mới theo chủ đề</h3>
+          <div class="sub">Nhập chủ đề, số bài và khoảng thời gian. Tool lọc bài cũ, xếp theo độ mới + tương tác; không tự bịa bài.</div>
+        </div>
+        <span class="badge badge-cyan">DISCOVERY</span>
+      </div>
+      <div class="panel-body">
+        <div class="discover-grid">
+          <div class="field discover-topic">
+            <label for="discoverTopic">Chủ đề muốn cào</label>
+            <input class="input" id="discoverTopic" list="discoverTopicSuggestions" placeholder="Ví dụ: chó mèo, 3 giờ sáng, công sở, học đường..." value="${esc(d.topic)}" autocomplete="off" ${d.loading ? 'disabled' : ''} />
+            <datalist id="discoverTopicSuggestions">
+              <option value="chó mèo"></option>
+              <option value="mèo"></option>
+              <option value="3 giờ sáng"></option>
+              <option value="công sở"></option>
+              <option value="học đường"></option>
+              <option value="tình yêu"></option>
+            </datalist>
+          </div>
+          <div class="field">
+            <label for="discoverLimit">Số bài</label>
+            <input class="input" id="discoverLimit" type="number" min="1" max="20" step="1" value="${esc(String(d.limit))}" ${d.loading ? 'disabled' : ''} />
+          </div>
+          <div class="field">
+            <label for="discoverAge">Bài mới trong</label>
+            <select class="select" id="discoverAge" ${d.loading ? 'disabled' : ''}>
+              <option value="24" ${d.maxAgeHours === 24 ? 'selected' : ''}>24 giờ</option>
+              <option value="48" ${d.maxAgeHours === 48 ? 'selected' : ''}>48 giờ</option>
+              <option value="72" ${d.maxAgeHours === 72 ? 'selected' : ''}>3 ngày</option>
+              <option value="168" ${d.maxAgeHours === 168 ? 'selected' : ''}>7 ngày</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="discoverSort">Ưu tiên</label>
+            <select class="select" id="discoverSort" ${d.loading ? 'disabled' : ''}>
+              <option value="trend" ${d.sort === 'trend' ? 'selected' : ''}>Xu hướng</option>
+              <option value="recent" ${d.sort === 'recent' ? 'selected' : ''}>Mới nhất</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="threadsMode">Phiên Threads</label>
+            <select class="select" id="threadsMode" ${d.loading ? 'disabled' : ''}>
+              <option value="auto" ${state.threadsMode === 'auto' ? 'selected' : ''}>Tự động</option>
+              <option value="guest" ${state.threadsMode === 'guest' ? 'selected' : ''}>Ẩn danh (không login)</option>
+              <option value="account" ${state.threadsMode === 'account' ? 'selected' : ''}>Tài khoản Threads</option>
+            </select>
+          </div>
+          <div class="field discover-submit">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" data-action="discover-threads" ${d.loading ? 'disabled' : ''}>
+              ${d.loading ? '<span class="spinner spin"></span> Đang tìm...' : 'Tìm bài phù hợp'}
+            </button>
+          </div>
+        </div>
+        <div class="discover-suggest">
+          <span class="small text-faint">Gợi ý:</span>
+          ${['chó mèo', 'mèo', '3 giờ sáng', 'công sở', 'học đường'].map((topic) => `<button class="tag-chip" data-action="suggest-topic" data-topic="${esc(topic)}">${esc(topic)}</button>`).join('')}
+          <span class="small text-faint">Bình luận chỉ tải khi bạn chọn 1 bài.</span>
+        </div>
+        <div class="discover-mode" id="discoverModeNote">${discoveryModeNoteHtml()}</div>
+        <div class="discover-note">
+          <span id="discoverModeLine">Chế độ ${esc(threadsModeLabel())}.</span> Chỉ giữ bài trong khoảng thời gian đã chọn; bài không rõ ngày bị loại. Điểm xu hướng = tương tác + độ mới + độ khớp từ khóa.
+        </div>
+        ${
+          d.loading
+            ? `<div class="progress-line"><div class="progress-label"><span>Đang mở Threads search, cuộn và lọc bài...</span><span>Có thể 10–40 giây</span></div><div class="progress-track"><div class="progress-fill" style="width:62%;animation:pulse 1.4s ease-in-out infinite"></div></div></div>`
+            : ''
+        }
+        ${
+          d.error
+            ? `<div class="alert alert-error">
+                 <span class="alert-icon">!</span>
+                 <div class="grow">
+                   <strong>Không tìm được danh sách bài.</strong>
+                   <div>${esc(d.error.message || '')}</div>
+                   <div class="btn-row" style="margin-top:7px">
+                     ${d.error.code === 'THREADS_LOGIN_REQUIRED' ? '<button class="btn btn-sm" data-action="open-threads-login">Đăng nhập Threads</button>' : ''}
+                     <button class="btn btn-sm" data-action="discover-threads">Thử lại</button>
+                   </div>
+                 </div>
+               </div>`
+            : ''
+        }
+        ${
+          warnings.length
+            ? `<div class="alert alert-warn"><span class="alert-icon">!</span><div class="grow">${warnings.map((warning) => `<div>${esc(warning)}</div>`).join('')}</div></div>`
+            : ''
+        }
+        ${
+          searchMeta
+            ? `<div class="discovery-results">
+                 ${resultHead}
+                 <div class="discover-result-note">${esc(modeNote)}</div>
+                 ${
+                   d.candidates.length
+                     ? `<div class="candidate-list">${d.candidates.map((candidate, index) => candidateCardHtml(candidate, index)).join('')}</div>`
+                     : `<div class="empty" style="padding:22px"><div class="empty-mark">0</div><strong>Không có bài mới phù hợp</strong><p>Thử từ khóa rộng hơn, tăng khoảng thời gian, hoặc đăng nhập Threads. Tool không tự tạo bài để lấp chỗ trống.</p><div class="btn-row"><button class="btn btn-sm" data-action="discover-threads">Tìm lại</button><button class="btn btn-sm btn-ghost" data-action="open-threads-login">Đăng nhập Threads</button></div></div>`
+                 }
+               </div>`
+            : `<div class="discover-empty-hint">Nhập chủ đề và bấm “Tìm bài phù hợp”. Kết quả là bài public mới; chưa tải bình luận cho đến khi bạn chọn.</div>`
+        }
+      </div>
+    </section>`;
+}
+
 function step1Html() {
   const post = currentPost();
   const comments = orderedComments();
@@ -1006,12 +1225,14 @@ function step1Html() {
       <div class="page-head">
         <div>
           <h2>Cào hoặc nhập bài Threads</h2>
-          <p>Dán link bài Threads để lấy bài gốc và bình luận. Nội dung bình luận được giữ nguyên văn; bạn chỉ chọn/bỏ và sắp xếp thứ tự.</p>
+          <p>Tìm bài mới theo chủ đề hoặc dán link Threads. Nội dung bình luận được giữ nguyên văn; bạn chỉ chọn/bỏ và sắp xếp thứ tự.</p>
         </div>
         <div class="btn-row">
           <button class="btn btn-sm" data-action="demo-load">Nạp dữ liệu demo chó/mèo</button>
         </div>
       </div>
+
+      ${discoveryPanelHtml()}
 
       <section class="panel">
         <div class="panel-body source-card">
@@ -1134,13 +1355,13 @@ function threadsSessionHtml() {
       <span class="dot"></span>
       Threads: ${loggedIn ? 'đã đăng nhập' : 'chưa đăng nhập'}
     </span>
-    <span class="small text-faint" style="margin-left:8px">${loggedIn ? 'Có thể cào bài có bình luận.' : 'Cần đăng nhập Threads để cào bình luận đầy đủ.'}</span>`;
+    <span class="small text-faint" style="margin-left:8px">${loggedIn ? 'Tài khoản sẵn sàng; bình luận thường đầy đủ hơn.' : 'Ẩn danh không cần login; đăng nhập để lấy thêm bình luận.'}</span>`;
 }
 
 function scrapeErrorHtml() {
   if (!state.scrapeError) return '';
   const error = state.scrapeError;
-  const login = error.code === 'LOGIN_REQUIRED';
+  const login = error.code === 'LOGIN_REQUIRED' || error.code === 'THREADS_LOGIN_REQUIRED';
   return `
     <div class="alert alert-error">
       <span class="alert-icon">!</span>
@@ -1925,7 +2146,129 @@ async function syncStep3({ initial = false } = {}) {
   }
 }
 
-async function scrapeFromUrl(url) {
+function readDiscoveryForm() {
+  const topic = (document.getElementById('discoverTopic')?.value || state.discovery.topic || '').trim();
+  const limit = Math.max(1, Math.min(20, Number(document.getElementById('discoverLimit')?.value) || 5));
+  const maxAgeHours = Number(document.getElementById('discoverAge')?.value) || 72;
+  const sort = document.getElementById('discoverSort')?.value === 'recent' ? 'recent' : 'trend';
+  const requestedMode = document.getElementById('threadsMode')?.value || state.threadsMode;
+  state.threadsMode = ['guest', 'account'].includes(requestedMode) ? requestedMode : 'auto';
+  state.discovery.topic = topic;
+  state.discovery.limit = limit;
+  state.discovery.maxAgeHours = maxAgeHours;
+  state.discovery.sort = sort;
+  return { topic, limit, maxAgeHours, sort };
+}
+
+async function discoverThreadsUi() {
+  if (state.discovery.loading || state.scraping) return;
+  const form = readDiscoveryForm();
+  if (form.topic.length < 2) {
+    state.discovery.error = { code: 'INVALID_TOPIC', message: 'Nhập chủ đề ít nhất 2 ký tự, ví dụ “mèo” hoặc “công sở”.' };
+    renderView({ preserveScroll: true });
+    return;
+  }
+  const requested = state.threadsMode;
+  if (requested === 'account' && !threadsLoggedIn()) {
+    state.discovery.error = {
+      code: 'THREADS_LOGIN_REQUIRED',
+      message: 'Chế độ Tài khoản Threads cần đăng nhập Threads trước. Hãy đăng nhập hoặc chọn Ẩn danh.',
+    };
+    renderView({ preserveScroll: true });
+    return;
+  }
+  const mode = requested === 'auto' ? (threadsLoggedIn() ? 'account' : 'guest') : requested;
+  state.discovery.loading = true;
+  state.discovery.error = null;
+  state.discovery.candidates = [];
+  state.discovery.warnings = [];
+  state.discovery.stats = null;
+  state.discovery.meta = null;
+  state.discovery.selectedCode = '';
+  renderChrome();
+  renderView({ preserveScroll: true });
+
+  const controller = new AbortController();
+  const hardTimeout = window.setTimeout(() => controller.abort(), 70000);
+  try {
+    const data = await api('/api/threads/discover', {
+      method: 'POST',
+      json: {
+        topic: form.topic,
+        limit: form.limit,
+        maxAgeHours: form.maxAgeHours,
+        sort: form.sort,
+        mode,
+      },
+      signal: controller.signal,
+    });
+    const result = data.result || {};
+    state.discovery.candidates = Array.isArray(result.candidates) ? result.candidates : [];
+    state.discovery.warnings = Array.isArray(result.warnings) ? result.warnings : [];
+    state.discovery.stats = result.stats || null;
+    state.discovery.meta = {
+      ...(result.meta || {}),
+      limit: Number(result.requested) || form.limit,
+      found: Number(result.found) || 0,
+    };
+    if (data.threads) state.threadsSession = data.threads;
+    state.discovery.error = null;
+    state.discovery.loading = false;
+    renderChrome();
+    renderView({ preserveScroll: true });
+    if (state.discovery.candidates.length) {
+      window.setTimeout(() => scrollViewToElement(document.querySelector('.candidate-card'), 70), 120);
+      showToast(`Tìm được ${state.discovery.candidates.length} bài mới phù hợp.`, 'ok', 4500);
+    } else {
+      showToast('Không có bài mới phù hợp; xem cảnh báo và thử từ khóa/khoảng thời gian khác.', 'warn', 6500);
+    }
+  } catch (error) {
+    const aborted = error.name === 'AbortError';
+    state.discovery.loading = false;
+    state.discovery.error = {
+      code: aborted ? 'TIMEOUT' : error.code,
+      message: aborted
+        ? 'Tìm Threads quá lâu (>70 giây). Tool đã dừng; không tạo dữ liệu giả. Kiểm tra wifi/đăng nhập Threads rồi thử lại.'
+        : error.message,
+    };
+    renderChrome();
+    renderView({ preserveScroll: true });
+    showToast(state.discovery.error.message, 'error', 7000);
+  } finally {
+    window.clearTimeout(hardTimeout);
+  }
+}
+
+async function useCandidate(code) {
+  if (state.discovery.loading || state.scraping) return;
+  const candidate = state.discovery.candidates.find((item) => item.code === code);
+  if (!candidate) {
+    showToast('Không tìm thấy bài ứng viên. Hãy tìm lại danh sách.', 'warn');
+    return;
+  }
+  if (currentPost()) {
+    const ok = await confirmDialog({
+      title: 'Dùng bài này?',
+      message: `Bài @${candidate.author} sẽ thay bài đang làm và reset kế hoạch hiện tại. Lịch sử job vẫn được giữ. Tiếp tục?`,
+      confirmLabel: 'Dùng bài này',
+    });
+    if (!ok) return;
+  }
+  const mode = state.discovery.meta?.mode || resolvedThreadsMode();
+  if (mode === 'account' && !threadsLoggedIn()) {
+    state.scrapeError = {
+      code: 'THREADS_LOGIN_REQUIRED',
+      message: 'Bài này đang ở chế độ Tài khoản Threads nhưng phiên đã đăng xuất. Hãy đăng nhập lại hoặc tìm ở chế độ Ẩn danh.',
+    };
+    renderChrome();
+    renderView({ preserveScroll: true });
+    return;
+  }
+  state.discovery.selectedCode = code;
+  await scrapeFromUrl(candidate.url, { mode, candidateCode: code });
+}
+
+async function scrapeFromUrl(url, options = {}) {
   if (state.scraping) return;
   const value = String(url || '').trim();
   if (!value) {
@@ -1937,15 +2280,26 @@ async function scrapeFromUrl(url) {
     renderView();
     return;
   }
+  const mode = options.mode || resolvedThreadsMode();
+  if (mode === 'account' && !threadsLoggedIn()) {
+    state.scrapeError = {
+      code: 'THREADS_LOGIN_REQUIRED',
+      message: 'Chế độ Tài khoản Threads cần đăng nhập Threads trước. Hãy đăng nhập hoặc chọn Ẩn danh.',
+    };
+    renderChrome();
+    renderView({ preserveScroll: true });
+    return;
+  }
   state.scraping = true;
   state.scrapeError = null;
   state.scrapeWarnings = [];
   state.scrapeUrl = value;
+  if (options.candidateCode) state.discovery.selectedCode = options.candidateCode;
   renderView({ preserveScroll: true });
   const controller = new AbortController();
   const hardTimeout = window.setTimeout(() => controller.abort(), 75000);
   try {
-    const data = await api('/api/threads/scrape', { method: 'POST', json: { url: value }, signal: controller.signal });
+    const data = await api('/api/threads/scrape', { method: 'POST', json: { url: value, mode }, signal: controller.signal });
     state.workspace = data.workspace;
     state.scrapeWarnings = data.result?.warnings || [];
     state.plan = null;
@@ -1959,6 +2313,9 @@ async function scrapeFromUrl(url) {
     await refreshStatus({ quiet: true });
     renderChrome();
     renderView({ preserveScroll: false });
+    if (options.candidateCode) {
+      window.setTimeout(() => scrollViewToElement(document.querySelector('.post-card'), 10), 100);
+    }
     showToast(`Đã cào ${data.result?.comments?.length || 0} bình luận.`, 'ok');
   } catch (error) {
     state.scraping = false;
@@ -1973,7 +2330,7 @@ async function scrapeFromUrl(url) {
     renderChrome();
     renderView({ preserveScroll: true });
     showToast(state.scrapeError.message, 'error', 6000);
-    if (error.code === 'LOGIN_REQUIRED') void refreshThreadsSession({ rerender: true });
+    if (['LOGIN_REQUIRED', 'THREADS_LOGIN_REQUIRED'].includes(error.code)) void refreshThreadsSession({ rerender: true });
   } finally {
     window.clearTimeout(hardTimeout);
   }
@@ -1992,7 +2349,8 @@ async function openThreadsLogin() {
       if (session?.loggedIn) {
         window.clearInterval(state.threadsTimer);
         state.threadsTimer = null;
-        showToast('Threads đã đăng nhập.', 'ok');
+        if (state.step === 1) renderView({ preserveScroll: true });
+        showToast('Threads đã đăng nhập. Bạn có thể chọn chế độ Tài khoản để lấy thêm bình luận.', 'ok', 5000);
       } else if (tries >= 18) {
         window.clearInterval(state.threadsTimer);
         state.threadsTimer = null;
@@ -2694,6 +3052,14 @@ function handleDelegatedInput(event) {
     state.scrapeUrl = target.value;
     return;
   }
+  if (target.matches('#discoverTopic')) {
+    state.discovery.topic = target.value;
+    return;
+  }
+  if (target.matches('#discoverLimit')) {
+    state.discovery.limit = Number(target.value) || 5;
+    return;
+  }
   if (target.matches('#settingsDuration')) {
     const value = document.getElementById('settingsDurationValue');
     if (value) value.textContent = `${target.value}s`;
@@ -2741,6 +3107,22 @@ function handleDelegatedChange(event) {
   }
   if (target.matches('#uploadKind')) {
     state.uploadKind = target.value;
+    return;
+  }
+  if (target.matches('#discoverAge')) {
+    state.discovery.maxAgeHours = Number(target.value) || 72;
+    return;
+  }
+  if (target.matches('#discoverSort')) {
+    state.discovery.sort = target.value === 'recent' ? 'recent' : 'trend';
+    return;
+  }
+  if (target.matches('#threadsMode')) {
+    state.threadsMode = ['guest', 'account'].includes(target.value) ? target.value : 'auto';
+    const note = document.getElementById('discoverModeNote');
+    if (note) note.innerHTML = discoveryModeNoteHtml();
+    const modeLine = document.getElementById('discoverModeLine');
+    if (modeLine) modeLine.textContent = `Chế độ ${threadsModeLabel()}.`;
     return;
   }
   if (target.matches('[data-upload-file]')) {
@@ -2811,6 +3193,7 @@ async function onDocumentClick(event) {
   if (action === 'refresh-threads') {
     event.preventDefault();
     await refreshThreadsSession({ rerender: true });
+    if (state.step === 1) renderView({ preserveScroll: true });
     showToast(state.threadsSession?.loggedIn ? 'Threads đã đăng nhập.' : 'Threads vẫn chưa đăng nhập.', state.threadsSession?.loggedIn ? 'ok' : 'warn', 3500);
     return;
   }
@@ -2822,7 +3205,28 @@ async function onDocumentClick(event) {
   }
   if (action === 'retry-scrape') {
     event.preventDefault();
-    void scrapeFromUrl(state.scrapeUrl || document.getElementById('threadsUrl')?.value || '');
+    void scrapeFromUrl(state.scrapeUrl || document.getElementById('threadsUrl')?.value || '', { mode: resolvedThreadsMode() });
+    return;
+  }
+  if (action === 'discover-threads') {
+    event.preventDefault();
+    await discoverThreadsUi();
+    return;
+  }
+  if (action === 'suggest-topic') {
+    event.preventDefault();
+    const topic = actionEl.dataset.topic || '';
+    state.discovery.topic = topic;
+    const input = document.getElementById('discoverTopic');
+    if (input) {
+      input.value = topic;
+      input.focus();
+    }
+    return;
+  }
+  if (action === 'use-candidate') {
+    event.preventDefault();
+    await useCandidate(actionEl.dataset.code || '');
     return;
   }
   if (action === 'select-all-comments') {
@@ -3030,7 +3434,7 @@ async function onDocumentSubmit(event) {
   event.preventDefault();
   if (form.dataset.form === 'scrape') {
     const value = new FormData(form).get('url') || document.getElementById('threadsUrl')?.value || '';
-    await scrapeFromUrl(String(value));
+    await scrapeFromUrl(String(value), { mode: resolvedThreadsMode() });
     return;
   }
   if (form.dataset.form === 'rename-file') {

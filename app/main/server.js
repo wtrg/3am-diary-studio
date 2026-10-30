@@ -173,8 +173,14 @@ class LocalServer {
     this.demo = options.demo;
     this.dataDir = options.dataDir;
     this.scrapeThreads = options.scrapeThreads;
+    this.discoverThreads = options.discoverThreads || (async () => ({
+      ok: false,
+      code: 'DISCOVERY_UNAVAILABLE',
+      message: 'Discovery Threads chưa được khởi tạo.',
+    }));
     this.threadsLoginState = options.threadsLoginState;
     this.openThreadsLoginWindow = options.openThreadsLoginWindow;
+    this.threadsDiscoverBusy = false;
     this.isOnline = options.isOnline || (() => true);
     this.quit = options.quit || (() => {});
     this.openDataFolder = options.openDataFolder || (() => {});
@@ -470,13 +476,92 @@ class LocalServer {
       const result = await this.openThreadsLoginWindow();
       return json(res, 200, result);
     }
+    if (pathname === '/api/threads/discover' && method === 'POST') {
+      if (!this.isOnline()) {
+        throw httpError(503, 'OFFLINE', 'Mất kết nối mạng. Tool không tự bịa dữ liệu; hãy kiểm tra wifi rồi thử lại.');
+      }
+      const body = await readJsonBody(req);
+      const topic = String(body.topic || '').trim();
+      if (topic.length < 2) throw httpError(400, 'INVALID_TOPIC', 'Chủ đề cần có ít nhất 2 ký tự.');
+      if (topic.length > 120) throw httpError(400, 'INVALID_TOPIC', 'Chủ đề quá dài.');
+      const limit = Math.max(1, Math.min(20, Number(body.limit) || 5));
+      const maxAgeHours = Math.max(1, Math.min(24 * 30, Number(body.maxAgeHours) || 72));
+      const sort = body.sort === 'recent' ? 'recent' : 'trend';
+      const login = await this.threadsLoginState();
+      let mode = body.mode;
+      if (!['guest', 'account'].includes(mode)) mode = login.loggedIn ? 'account' : 'guest';
+      if (mode === 'account' && !login.loggedIn) {
+        const error = httpError(
+          401,
+          'THREADS_LOGIN_REQUIRED',
+          'Chế độ Tài khoản Threads cần đăng nhập Threads trước khi tìm bài. Hãy đăng nhập Threads hoặc chọn Ẩn danh.',
+        );
+        error.gateMessage = error.message;
+        throw error;
+      }
+      if (this.threadsDiscoverBusy) {
+        throw httpError(429, 'DISCOVERY_BUSY', 'Đang có một lượt tìm Threads khác. Chờ hoàn tất rồi thử lại.');
+      }
+      this.threadsDiscoverBusy = true;
+      let result;
+      try {
+        result = await Promise.race([
+          this.discoverThreads({ topic, limit, maxAgeHours, sort, mode }),
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  ok: false,
+                  code: 'TIMEOUT',
+                  message: 'Threads tìm kiếm quá lâu. Kiểm tra wifi/đăng nhập Threads rồi thử lại.',
+                }),
+              55000,
+            ),
+          ),
+        ]);
+      } finally {
+        this.threadsDiscoverBusy = false;
+      }
+      if (!result.ok) {
+        const status = result.code === 'THREADS_LOGIN_REQUIRED' ? 401 : result.code === 'TIMEOUT' ? 504 : 422;
+        const error = new Error(result.message || 'Không tìm được bài Threads.');
+        error.statusCode = status;
+        error.code = result.code || 'DISCOVERY_FAILED';
+        error.details = result;
+        throw error;
+      }
+      return json(res, 200, {
+        result: {
+          candidates: result.candidates || [],
+          warnings: result.warnings || [],
+          stats: result.stats || null,
+          meta: result.meta || null,
+          requested: result.requested,
+          found: result.found,
+          tokens: result.tokens || [],
+        },
+        threads: await this.threadsLoginState(),
+      });
+    }
     if (pathname === '/api/threads/scrape' && method === 'POST') {
       if (!this.isOnline()) {
         throw httpError(503, 'OFFLINE', 'Mất kết nối mạng. Tool không tự bịa dữ liệu; hãy kiểm tra wifi rồi thử lại.');
       }
       const body = await readJsonBody(req);
+      const login = await this.threadsLoginState();
+      let mode = body.mode;
+      if (!['guest', 'account'].includes(mode)) mode = login.loggedIn ? 'account' : 'guest';
+      if (mode === 'account' && !login.loggedIn) {
+        const error = httpError(
+          401,
+          'THREADS_LOGIN_REQUIRED',
+          'Chế độ Tài khoản Threads cần đăng nhập Threads trước khi cào bài. Hãy đăng nhập Threads hoặc chọn Ẩn danh.',
+        );
+        error.gateMessage = error.message;
+        throw error;
+      }
       const result = await Promise.race([
-        this.scrapeThreads(body.url),
+        this.scrapeThreads(body.url, { mode }),
         new Promise((resolve) =>
           setTimeout(
             () =>

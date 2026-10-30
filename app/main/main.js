@@ -31,6 +31,7 @@ const {
   openThreadsLoginWindow,
   CHROME_UA,
 } = require('./threads/scraper');
+const { discoverThreads } = require('./threads/discoverThreads');
 
 let mainWindow = null;
 let server = null;
@@ -72,7 +73,8 @@ app.whenReady().then(async () => {
       muse: museGate,
       ruleSlot: museRule,
       demo,
-      scrapeThreads: (url) => scrapeThreads(url, { debugDump: process.env.SCRAPER_DUMP_DIR || '' }),
+      scrapeThreads: (url, options = {}) => scrapeThreads(url, { ...options, debugDump: process.env.SCRAPER_DUMP_DIR || '' }),
+      discoverThreads: (options = {}) => discoverThreads({ ...options, debugDump: process.env.SCRAPER_DUMP_DIR || '' }),
       threadsLoginState,
       openThreadsLoginWindow: () => openThreadsLoginWindow(mainWindow),
       isOnline: () => {

@@ -1,6 +1,7 @@
 node_modules/
 .devdata/
 .live-verify/
+.discovery-ui/
 .scratch/
 vibe_images/
 artifacts/
