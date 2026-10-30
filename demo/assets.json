@@ -3,7 +3,12 @@
     "id": "meme_demo_dog_sideeye",
     "kind": "meme",
     "name": "Chó liếc xéo đầy ẩn ý",
-    "tags": ["chó", "hài", "3am", "sideeye"],
+    "tags": [
+      "chó",
+      "hài",
+      "3am",
+      "sideeye"
+    ],
     "file": "memes/dog_sideeye.png",
     "mediaType": "image",
     "mime": "image/png"
@@ -12,7 +17,12 @@
     "id": "meme_demo_cat_judge",
     "kind": "meme",
     "name": "Mèo phán xét",
-    "tags": ["mèo", "hài", "phán xét", "3am"],
+    "tags": [
+      "mèo",
+      "hài",
+      "phán xét",
+      "3am"
+    ],
     "file": "memes/cat_judge.png",
     "mediaType": "image",
     "mime": "image/png"
@@ -21,7 +31,12 @@
     "id": "meme_demo_dog_blanket",
     "kind": "meme",
     "name": "Chó trùm chăn trốn trách nhiệm",
-    "tags": ["chó", "hài", "ấm áp", "trốn"],
+    "tags": [
+      "chó",
+      "hài",
+      "ấm áp",
+      "trốn"
+    ],
     "file": "memes/dog_blanket.png",
     "mediaType": "image",
     "mime": "image/png"
@@ -30,16 +45,41 @@
     "id": "meme_demo_cat_glass",
     "kind": "meme",
     "name": "Mèo hất ly nước",
-    "tags": ["mèo", "hài", "căng thẳng", "chaos"],
+    "tags": [
+      "mèo",
+      "hài",
+      "căng thẳng",
+      "chaos"
+    ],
     "file": "memes/cat_glass.png",
     "mediaType": "image",
     "mime": "image/png"
   },
   {
+    "id": "meme_demo_dog_shock_gif",
+    "kind": "meme",
+    "name": "Chó giật mình (GIF động)",
+    "tags": [
+      "chó",
+      "hài",
+      "gif",
+      "3am",
+      "sốc"
+    ],
+    "file": "memes/dog_shock.gif",
+    "mediaType": "image",
+    "mime": "image/gif"
+  },
+  {
     "id": "meme_demo_dog_zoom",
     "kind": "meme",
     "name": "Chó zoomies (clip ngắn)",
-    "tags": ["chó", "clip", "năng lượng", "hài"],
+    "tags": [
+      "chó",
+      "clip",
+      "năng lượng",
+      "hài"
+    ],
     "file": "memes/dog_zoom.mp4",
     "mediaType": "video",
     "mime": "video/mp4"
@@ -48,7 +88,12 @@
     "id": "music_demo_lofi",
     "kind": "music",
     "name": "Lofi 3 giờ sáng",
-    "tags": ["lofi", "nhẹ", "ban đêm", "bí ẩn"],
+    "tags": [
+      "lofi",
+      "nhẹ",
+      "ban đêm",
+      "bí ẩn"
+    ],
     "file": "audio/lofi_night.wav",
     "mediaType": "audio",
     "mime": "audio/wav"
@@ -57,7 +102,11 @@
     "id": "sfx_demo_whoosh",
     "kind": "sfx",
     "name": "Whoosh chuyển cảnh",
-    "tags": ["whoosh", "chuyển cảnh", "nhẹ"],
+    "tags": [
+      "whoosh",
+      "chuyển cảnh",
+      "nhẹ"
+    ],
     "file": "audio/sfx_whoosh.wav",
     "mediaType": "audio",
     "mime": "audio/wav"
@@ -66,7 +115,11 @@
     "id": "sfx_demo_pop",
     "kind": "sfx",
     "name": "Pop điểm nhấn",
-    "tags": ["pop", "điểm nhấn", "hài"],
+    "tags": [
+      "pop",
+      "điểm nhấn",
+      "hài"
+    ],
     "file": "audio/sfx_pop.wav",
     "mediaType": "audio",
     "mime": "audio/wav"
@@ -75,7 +128,12 @@
     "id": "bg_demo_cozy",
     "kind": "background",
     "name": "Gameplay phòng 3 giờ sáng",
-    "tags": ["gameplay", "ban đêm", "chó mèo", "cozy"],
+    "tags": [
+      "gameplay",
+      "ban đêm",
+      "chó mèo",
+      "cozy"
+    ],
     "file": "background/cozy_gameplay.mp4",
     "mediaType": "video",
     "mime": "video/mp4"

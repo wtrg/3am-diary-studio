@@ -607,9 +607,9 @@ function renderGlobalBanner() {
   if (!isMuseUnlocked()) {
     const hints = [];
     if (!isMuseConfigured()) {
-      hints.push('Chưa cấu hình Muse trong <code>config/muse_rule.json</code> (muse.url + cách kiểm tra đăng nhập).');
+      hints.push('Bấm “Cấu hình Muse” để nhập URL trang Muse kèm tool và mở phiên đăng nhập.');
     } else if (!state.status.muse?.loginCheckConfigured) {
-      hints.push('Đã có URL Muse nhưng chưa cấu hình cách kiểm tra đăng nhập (selector/cookie).');
+      hints.push('Đã có URL Muse nhưng chưa đo tín hiệu đăng nhập. Mở “Cấu hình Muse” → đăng nhập → “Đo phiên hiện tại”.');
     } else {
       hints.push('Đăng nhập trong khung Muse ở Bước 3, sau đó bấm “Kiểm tra đăng nhập”.');
     }
@@ -621,7 +621,9 @@ function renderGlobalBanner() {
           <div class="small text-muted" style="margin-top:3px">${hints.join(' ')}</div>
         </div>
         <div class="banner-actions">
-          <button class="btn btn-sm" data-action="go-step" data-step="3">Mở khung Muse</button>
+          <button class="btn btn-sm btn-primary" data-action="config-muse">Cấu hình Muse</button>
+          ${isMuseConfigured() ? '<button class="btn btn-sm" data-action="open-muse-login">Đăng nhập Muse</button>' : ''}
+          <button class="btn btn-sm" data-action="go-step" data-step="3">Mở Bước 3</button>
         </div>
       </div>`);
   }
@@ -641,14 +643,14 @@ function browserPanelHtml() {
         <div class="big-mark">MUSE</div>
         <h4>Chưa cấu hình Muse</h4>
         <p>
-          Mở <code>config/muse_rule.json</code>, điền <code>muse.url</code> và cấu hình kiểm tra đăng nhập
-          (<code>cookie_names</code>, selector đăng nhập/đăng xuất). Sau đó bấm “Tải lại cấu hình”.
+          Nhập URL trang Muse kèm theo tool để mở phiên đăng nhập ngay trong ứng dụng.
+          Sau khi đăng nhập, bấm “Đo phiên hiện tại” để lưu đúng tín hiệu đăng nhập.
         </p>
         <div class="btn-row">
-          <button class="btn" data-action="reload-muse-config">Tải lại cấu hình</button>
-          <button class="btn btn-ghost" data-action="show-renderer-info">Xem thông tin renderer</button>
+          <button class="btn btn-primary" data-action="config-muse">Cấu hình Muse</button>
+          <button class="btn btn-ghost" data-action="reload-muse-config">Tải lại file cấu hình</button>
         </div>
-        <p class="small text-faint">Không có fallback AI. Không có chế độ chạy không cần Muse.</p>
+        <p class="small text-faint">Không lưu mật khẩu. Không có fallback AI. Không có chế độ chạy không cần Muse.</p>
       </div>`;
   } else {
     frame = `<div id="museFrameHost" style="height:100%"></div>`;
@@ -662,6 +664,7 @@ function browserPanelHtml() {
           <span class="url">${esc(muse.url || 'chưa cấu hình')}</span>
         </div>
         <div class="browser-actions">
+          <button class="btn btn-sm" data-action="config-muse">Cấu hình Muse</button>
           <button class="icon-btn" title="Tải lại khung Muse" data-action="reload-muse-page" ${muse.configured ? '' : 'disabled'}>↻</button>
           <button class="icon-btn" title="${state.museExpanded ? 'Thu nhỏ' : 'Mở rộng'} khung Muse" data-action="toggle-muse-expand">${state.museExpanded ? '⇱' : '⇲'}</button>
         </div>
@@ -694,8 +697,8 @@ function gateCardHtml() {
       </div>`;
   }
   let hint = 'Đăng nhập trong khung Muse bên trái, sau đó bấm “Kiểm tra đăng nhập”.';
-  if (!muse.configured) hint = 'Chưa cấu hình Muse trong config/muse_rule.json. Không thể mở khung Muse để đăng nhập.';
-  else if (!muse.loginCheckConfigured) hint = 'Đã có URL Muse nhưng chưa cấu hình cách kiểm tra đăng nhập (cookie/selector).';
+  if (!muse.configured) hint = 'Chưa cấu hình Muse. Bấm “Cấu hình Muse” để nhập URL và mở phiên đăng nhập.';
+  else if (!muse.loginCheckConfigured) hint = 'Đã có URL Muse nhưng chưa đo tín hiệu đăng nhập. Mở “Cấu hình Muse” → đăng nhập → “Đo phiên hiện tại”.';
   return `
     <div class="gate-card">
       <div class="gate-top">
@@ -707,7 +710,9 @@ function gateCardHtml() {
         </div>
       </div>
       <div class="gate-actions">
-        <button class="btn btn-sm" data-action="focus-muse" ${muse.configured ? '' : 'disabled'}>Mở khung Muse để đăng nhập</button>
+        <button class="btn btn-sm btn-primary" data-action="config-muse">Cấu hình Muse</button>
+        <button class="btn btn-sm" data-action="open-muse-login" ${muse.configured ? '' : 'disabled'}>Mở cửa sổ đăng nhập Muse</button>
+        <button class="btn btn-sm" data-action="focus-muse" ${muse.configured ? '' : 'disabled'}>Mở khung Muse</button>
         <button class="btn btn-sm" data-action="verify-muse" ${muse.configured && muse.loginCheckConfigured ? '' : 'disabled'}>Kiểm tra đăng nhập</button>
         <button class="btn btn-sm btn-ghost" data-action="reload-muse-config">Tải lại cấu hình</button>
       </div>
@@ -1866,6 +1871,20 @@ function ensureMuseWebview() {
   const host = document.getElementById('museFrameHost');
   if (!host) return;
   if (state.museWebview && state.museWebview.isConnected) return;
+  if (state.museWebview) {
+    // Config edits rerender the view; keep the live session webview when the origin is unchanged.
+    let sameOrigin = false;
+    try {
+      const current = new URL(state.museWebview.getAttribute('src'));
+      const next = new URL(muse.url);
+      sameOrigin = current.origin === next.origin;
+    } catch {}
+    if (sameOrigin) {
+      host.innerHTML = '';
+      host.appendChild(state.museWebview);
+      return;
+    }
+  }
   host.innerHTML = '';
   const webview = document.createElement('webview');
   webview.setAttribute('partition', 'persist:muse');
@@ -1894,6 +1913,249 @@ function ensureMuseWebview() {
   });
   host.appendChild(webview);
   state.museWebview = webview;
+}
+
+function commaList(value) {
+  return String(value || '')
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function museConfigFormHtml() {
+  const muse = state.status.muse || {};
+  const login = muse.login || {};
+  const bridge = muse.bridge || {};
+  return `
+    <div class="modal" style="max-width:780px">
+      <div class="modal-head">
+        <div>
+          <h3>Cấu hình Muse</h3>
+          <p>Nhập URL trang Muse kèm tool, đăng nhập trong cửa sổ riêng, rồi đo tín hiệu phiên. Tool chỉ lưu tên cookie/selector — không lưu mật khẩu.</p>
+        </div>
+        <button class="icon-btn" data-action="close-modal" title="Đóng">×</button>
+      </div>
+      <form data-form="muse-config">
+        <div class="modal-body">
+          <div class="field">
+            <label for="museName">Tên hiển thị</label>
+            <input class="input" id="museName" name="name" value="${esc(muse.name || 'Muse')}" maxlength="80" />
+          </div>
+          <div class="field">
+            <label for="museUrl">URL Muse <span class="req">*</span></label>
+            <input class="input" id="museUrl" name="url" value="${esc(muse.url || '')}" placeholder="https://..." autofocus />
+            <span class="hint">Phải là http:// hoặc https://. URL này cũng là domain được phép mở trong khung Muse.</span>
+          </div>
+
+          <div class="muse-config-section">
+            <strong>Tín hiệu đăng nhập</strong>
+            <span class="small text-faint">Đăng nhập trong cửa sổ Muse, sau đó bấm “Đo phiên hiện tại”. Có thể nhập tay nếu đã biết.</span>
+          </div>
+          <div class="field">
+            <label for="museCookieNames">Tên cookie đăng nhập</label>
+            <input class="input" id="museCookieNames" name="cookie_names" value="${esc((login.cookie_names || []).join(', '))}" placeholder="session_id, auth_token" />
+            <span class="hint">Phân tách bằng dấu phẩy. Chỉ tên cookie, không nhập giá trị.</span>
+          </div>
+          <div class="muse-config-grid">
+            <div class="field">
+              <label for="museLoggedInUrl">URL chứa (đã đăng nhập)</label>
+              <input class="input" id="museLoggedInUrl" name="logged_in_url_contains" value="${esc((login.logged_in_url_contains || []).join(', '))}" placeholder="/chat, /app" />
+            </div>
+            <div class="field">
+              <label for="museLoggedOutUrl">URL chứa (đã đăng xuất)</label>
+              <input class="input" id="museLoggedOutUrl" name="logged_out_url_contains" value="${esc((login.logged_out_url_contains || []).join(', '))}" placeholder="/login, /signin" />
+            </div>
+            <div class="field">
+              <label for="museLoggedInSelector">Selector đã đăng nhập</label>
+              <input class="input" id="museLoggedInSelector" name="logged_in_selectors" value="${esc((login.logged_in_selectors || []).join(', '))}" placeholder="[data-user-menu]" />
+            </div>
+            <div class="field">
+              <label for="museLoggedOutSelector">Selector đã đăng xuất</label>
+              <input class="input" id="museLoggedOutSelector" name="logged_out_selectors" value="${esc((login.logged_out_selectors || []).join(', '))}" placeholder="form[action*=login]" />
+            </div>
+          </div>
+
+          <div class="muse-measure-box" id="museMeasureResult">
+            <div class="small text-faint">Chưa đo phiên. Bấm “Đo phiên hiện tại” sau khi đăng nhập trong cửa sổ Muse.</div>
+          </div>
+
+          <div class="muse-config-section">
+            <strong>Bridge gửi/nhận kế hoạch (tùy chọn)</strong>
+            <span class="small text-faint">Để trống thì dùng luồng dán JSON thủ công. Không tự tạo kết quả nếu Muse không trả JSON.</span>
+          </div>
+          <div class="muse-config-grid">
+            <div class="field">
+              <label for="museBridgeMode">Chế độ bridge</label>
+              <select class="select" id="museBridgeMode" name="bridge_mode">
+                <option value="manual" ${bridge.mode !== 'auto' ? 'selected' : ''}>Thủ công (copy/paste JSON)</option>
+                <option value="auto" ${bridge.mode === 'auto' ? 'selected' : ''}>Tự động (selector)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="museBridgeWait">Chờ tối đa (ms)</label>
+              <input class="input" id="museBridgeWait" name="bridge_wait_timeout_ms" type="number" min="15000" max="600000" step="1000" value="${Number(bridge.waitTimeoutMs) || 180000}" />
+            </div>
+            <div class="field">
+              <label for="museNewChatUrl">URL tạo phiên mới</label>
+              <input class="input" id="museNewChatUrl" name="bridge_new_chat_url" value="${esc(bridge.newChatUrl || '')}" placeholder="https://.../new" />
+            </div>
+            <div class="field">
+              <label for="museInputSelector">Selector ô nhập</label>
+              <input class="input" id="museInputSelector" name="bridge_input_selector" value="${esc(bridge.inputSelector || '')}" placeholder="textarea[data-chat-input]" />
+            </div>
+            <div class="field">
+              <label for="museSendSelector">Selector nút gửi</label>
+              <input class="input" id="museSendSelector" name="bridge_send_selector" value="${esc(bridge.sendSelector || '')}" placeholder="button[data-send]" />
+            </div>
+            <div class="field">
+              <label for="museResponseSelector">Selector phản hồi</label>
+              <input class="input" id="museResponseSelector" name="bridge_response_selector" value="${esc(bridge.responseSelector || '')}" placeholder="[data-message='assistant']" />
+            </div>
+          </div>
+          <p class="small text-faint">Mật khẩu Muse chỉ nhập trong cửa sổ đăng nhập. Tool không lưu mật khẩu dưới dạng văn bản.</p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-action="close-modal">Đóng</button>
+          <button class="btn" type="button" data-action="measure-muse-session">Đo phiên hiện tại</button>
+          <button class="btn" type="button" data-action="open-muse-login">Lưu &amp; mở cửa sổ đăng nhập</button>
+          <button class="btn btn-primary" type="submit">Lưu cấu hình</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+function openMuseConfigDialog() {
+  openModal(museConfigFormHtml());
+}
+
+function museConfigPayload(form) {
+  const data = new FormData(form);
+  return {
+    name: String(data.get('name') || 'Muse'),
+    url: String(data.get('url') || ''),
+    login: {
+      cookie_names: commaList(data.get('cookie_names')),
+      logged_in_url_contains: commaList(data.get('logged_in_url_contains')),
+      logged_out_url_contains: commaList(data.get('logged_out_url_contains')),
+      logged_in_selectors: commaList(data.get('logged_in_selectors')),
+      logged_out_selectors: commaList(data.get('logged_out_selectors')),
+    },
+    bridge: {
+      mode: String(data.get('bridge_mode') || 'manual'),
+      new_chat_url: String(data.get('bridge_new_chat_url') || ''),
+      input_selector: String(data.get('bridge_input_selector') || ''),
+      send_selector: String(data.get('bridge_send_selector') || ''),
+      response_selector: String(data.get('bridge_response_selector') || ''),
+      wait_timeout_ms: Number(data.get('bridge_wait_timeout_ms')) || 180000,
+    },
+  };
+}
+
+async function saveMuseConfig(form, { keepOpen = false, quiet = false } = {}) {
+  if (!form) return false;
+  const data = museConfigPayload(form);
+  if (!data.url.trim()) {
+    showToast('Nhập URL Muse trước khi lưu.', 'warn');
+    form.querySelector('#museUrl')?.focus();
+    return false;
+  }
+  try {
+    const result = await api('/api/muse/config', { method: 'POST', json: data });
+    state.status.muse = { ...state.status.muse, ...(result.status || {}) };
+    updateMuseGate();
+    if (!keepOpen) {
+      closeModal();
+      renderChrome();
+      renderView({ preserveScroll: true });
+    }
+    if (!quiet) showToast('Đã lưu cấu hình Muse.', 'ok', 3000);
+    return true;
+  } catch (error) {
+    showToast(error.message, 'error', 6500);
+    return false;
+  }
+}
+
+async function openMuseLoginUi(button) {
+  const form = button?.closest('form[data-form="muse-config"]');
+  if (form) {
+    const saved = await saveMuseConfig(form, { keepOpen: true, quiet: true });
+    if (!saved) return;
+  }
+  try {
+    await api('/api/muse/session/open', { method: 'POST', json: {} });
+    showToast('Đã mở cửa sổ đăng nhập Muse. Đăng nhập ở cửa sổ đó rồi bấm “Đo phiên hiện tại”.', 'ok', 6000);
+  } catch (error) {
+    showToast(error.message, 'error', 6500);
+  }
+}
+
+function renderMuseMeasurement(result) {
+  const host = document.getElementById('museMeasureResult');
+  if (!host) return;
+  const suggested = new Set(result.suggestedCookieNames || []);
+  const cookies = Array.isArray(result.cookies) ? result.cookies : [];
+  const rows = cookies.length
+    ? cookies
+        .map(
+          (cookie) => `
+        <label class="muse-cookie-row">
+          <input type="checkbox" data-muse-cookie value="${esc(cookie.name)}" ${suggested.has(cookie.name) && !result.hasPasswordField ? 'checked' : ''} />
+          <span class="mono-small">${esc(cookie.name)}</span>
+          <span class="small text-faint">${esc(cookie.domain || '')} · ${cookie.httpOnly ? 'httpOnly' : 'js'} · ${cookie.session ? 'session' : 'có hạn'}</span>
+        </label>`,
+        )
+        .join('')
+    : '<div class="small text-amber">Không thấy cookie nào cho domain Muse. Hãy kiểm tra đã đăng nhập và đang đứng đúng domain Muse.</div>';
+  host.innerHTML = `
+    <div class="measure-head">
+      <div>
+        <strong>Đo lúc ${esc(fmtDateTime(result.measuredAt))}</strong>
+        <div class="small text-faint">${esc(result.url || '')}${result.title ? ` · ${esc(result.title)}` : ''}</div>
+      </div>
+      ${result.hasPasswordField ? '<span class="badge badge-amber">Trang còn ô mật khẩu</span>' : '<span class="badge badge-green">Không thấy ô mật khẩu</span>'}
+    </div>
+    <div class="small text-faint">Chọn đúng cookie sinh ra sau khi đăng nhập. Tool chỉ lưu tên cookie, không lưu giá trị.</div>
+    <div class="muse-cookie-list">${rows}</div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-primary" type="button" data-action="apply-muse-measurement">Dùng cookie đã chọn &amp; lưu</button>
+    </div>`;
+}
+
+async function measureMuseSessionUi(button) {
+  const form = button?.closest('form[data-form="muse-config"]');
+  if (form) {
+    const saved = await saveMuseConfig(form, { keepOpen: true, quiet: true });
+    if (!saved) return;
+  }
+  const host = document.getElementById('museMeasureResult');
+  if (host) host.innerHTML = '<div class="small text-faint">Đang đọc phiên Muse...</div>';
+  if (button) button.disabled = true;
+  try {
+    const result = await api('/api/muse/session/measure', { method: 'POST', json: {} });
+    renderMuseMeasurement(result);
+  } catch (error) {
+    if (host) host.innerHTML = `<div class="small text-amber">${esc(error.message)}</div>`;
+    showToast(error.message, 'error', 6500);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function applyMuseMeasurement(button) {
+  const form = button?.closest('form[data-form="muse-config"]');
+  if (!form) return;
+  const checked = [...document.querySelectorAll('[data-muse-cookie]:checked')].map((input) => input.value);
+  if (!checked.length) {
+    showToast('Chọn ít nhất một cookie đăng nhập. Nếu không thấy cookie, hãy đăng nhập lại trong cửa sổ Muse.', 'warn', 5500);
+    return;
+  }
+  const cookieInput = form.querySelector('[name="cookie_names"]');
+  if (cookieInput) cookieInput.value = checked.join(', ');
+  const saved = await saveMuseConfig(form, { keepOpen: false, quiet: true });
+  if (!saved) return;
+  showToast('Đã lưu tín hiệu đăng nhập. Đang kiểm tra phiên Muse...', 'info', 3500);
+  await verifyMuse(true);
 }
 
 async function verifyMuse(showFeedback = true) {
@@ -2568,10 +2830,9 @@ async function sendToMuse() {
   try {
     setBusy('bridge', true);
     renderWorkflow();
-    const rawInput = JSON.stringify(state.planInput, null, 2);
     const data = await api('/api/muse/bridge/send', {
       method: 'POST',
-      json: { webContentsId: state.museWebviewId || null, text: rawInput },
+      json: { webContentsId: state.museWebviewId || null, input: state.planInput },
     });
     const raw = data.raw || '';
     state.manualResponse = raw;
@@ -3345,6 +3606,26 @@ async function onDocumentClick(event) {
     moveSegment(Number(actionEl.dataset.index), action === 'plan-move-up' ? 'up' : 'down');
     return;
   }
+  if (action === 'config-muse') {
+    event.preventDefault();
+    openMuseConfigDialog();
+    return;
+  }
+  if (action === 'open-muse-login') {
+    event.preventDefault();
+    await openMuseLoginUi(actionEl);
+    return;
+  }
+  if (action === 'measure-muse-session') {
+    event.preventDefault();
+    await measureMuseSessionUi(actionEl);
+    return;
+  }
+  if (action === 'apply-muse-measurement') {
+    event.preventDefault();
+    await applyMuseMeasurement(actionEl);
+    return;
+  }
   if (action === 'verify-muse') {
     event.preventDefault();
     await verifyMuse(true);
@@ -3441,6 +3722,10 @@ async function onDocumentSubmit(event) {
     const id = form.dataset.id;
     const name = new FormData(form).get('name') || '';
     await renameFile(id, String(name));
+    return;
+  }
+  if (form.dataset.form === 'muse-config') {
+    await saveMuseConfig(form, { keepOpen: false });
   }
 }
 

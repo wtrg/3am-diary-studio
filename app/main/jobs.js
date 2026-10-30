@@ -5,7 +5,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { readJsonSync, writeJsonAtomic, ensureDir } = require('./fsutil');
-const { getAdapter, describe } = require('./render');
+const { getAdapter, describe, describeAdapter } = require('./render');
 
 const STATUS = {
   QUEUED: 'queued',
@@ -158,7 +158,8 @@ class JobQueue {
     job.error = null;
     job.attempts = (job.attempts || 0) + 1;
     job.updated_at = this.now();
-    job.renderer = describe();
+    const adapter = this.adapterProvider(job) || getAdapter(job);
+    job.renderer = describeAdapter(adapter);
     await this.persist();
 
     const outputFile = `${job.id}.mp4`;
@@ -192,7 +193,6 @@ class JobQueue {
         assets.push({ ...asset, file: current.file, absolutePath: this.library.mediaPath(current) });
       }
 
-      const adapter = this.adapterProvider();
       const result = await adapter.render({
         job,
         plan: JSON.parse(JSON.stringify(job.plan)),
@@ -202,6 +202,7 @@ class JobQueue {
         assets,
         outputPath,
         tempDir,
+        screensDir: path.join(this.dataDir, 'screens', job.id),
         onProgress,
         appendLog: (line) => this._appendLog(job, line),
         signal: { aborted: false },

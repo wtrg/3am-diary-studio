@@ -85,16 +85,19 @@ class MuseGate {
 
   findWebview(id) {
     const numeric = Number(id);
-    if (!Number.isInteger(numeric)) return null;
-    const contents = webContents.fromId(numeric);
-    if (!contents || contents.isDestroyed()) return null;
-    if (contents.getType() !== 'webview') return null;
-    try {
-      if (contents.session !== museSession()) return null;
-    } catch {
-      return null;
+    const fromId = Number.isInteger(numeric) ? webContents.fromId(numeric) : null;
+    const candidates = fromId ? [fromId] : webContents.getAllWebContents();
+    for (const contents of candidates) {
+      if (!contents || contents.isDestroyed()) continue;
+      if (contents.getType() !== 'webview') continue;
+      try {
+        if (contents.session !== museSession()) continue;
+      } catch {
+        continue;
+      }
+      return contents;
     }
-    return contents;
+    return null;
   }
 
   async verify({ webContentsId } = {}) {

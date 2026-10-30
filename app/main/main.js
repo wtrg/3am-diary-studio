@@ -24,6 +24,7 @@ const { Workspace } = require('./workspace');
 const { JobQueue } = require('./jobs');
 const { MuseRuleSlot } = require('./museRule');
 const { MuseGate, MUSE_PARTITION } = require('./muse');
+const { MuseLoginService } = require('./museLogin');
 const { DemoService } = require('./demo');
 const {
   scrapeThreads,
@@ -54,6 +55,7 @@ app.whenReady().then(async () => {
   try {
     const museRule = new MuseRuleSlot(MUSE_RULE_FILE);
     const museGate = new MuseGate(museRule);
+    const museLogin = new MuseLoginService({ ruleSlot: museRule, getParentWindow: () => mainWindow });
     const library = new Library(DATA_DIR);
     const workspace = new Workspace(DATA_DIR);
     const jobs = new JobQueue({ dataDir: DATA_DIR, library });
@@ -77,6 +79,8 @@ app.whenReady().then(async () => {
       discoverThreads: (options = {}) => discoverThreads({ ...options, debugDump: process.env.SCRAPER_DUMP_DIR || '' }),
       threadsLoginState,
       openThreadsLoginWindow: () => openThreadsLoginWindow(mainWindow),
+      openMuseLoginWindow: () => museLogin.open(),
+      measureMuseSession: () => museLogin.measure(),
       isOnline: () => {
         if (process.env.E2E_TEST) return true;
         try {

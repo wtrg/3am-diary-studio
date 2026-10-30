@@ -10,3 +10,4 @@ BAO_CAO_GUI_MUSE.md
 .env
 .env.*
 *.pem
+.sample/

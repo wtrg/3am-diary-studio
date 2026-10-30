@@ -142,9 +142,39 @@ try {
   const portalPort = await freePort();
   const debugPort = await freePort();
   const configFile = path.join(TMP, 'muse_rule.test.json');
-  const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'muse_rule.test.json'), 'utf8'));
-  config.muse.url = `http://127.0.0.1:${portalPort}/`;
-  await fsp.writeFile(configFile, JSON.stringify(config, null, 2));
+  const portalUrl = `http://127.0.0.1:${portalPort}/`;
+  // Start from an empty slot so the E2E exercises in-app Muse setup + real login window.
+  await fsp.writeFile(
+    configFile,
+    JSON.stringify(
+      {
+        version: 1,
+        muse: {
+          name: 'Muse',
+          url: '',
+          login: {
+            logged_in_url_contains: [],
+            logged_out_url_contains: [],
+            logged_in_selectors: [],
+            logged_out_selectors: [],
+            cookie_names: [],
+          },
+          bridge: {
+            mode: 'manual',
+            new_chat_url: '',
+            input_selector: '',
+            send_selector: '',
+            response_selector: '',
+            wait_timeout_ms: 180000,
+          },
+        },
+        rule: { prompt: '', version: 0 },
+        test_options: { enable_sample_plan: true },
+      },
+      null,
+      2,
+    ),
+  );
 
   portalProcess = spawn(process.execPath, [path.join(ROOT, 'tests', 'muse-portal', 'server.js')], {
     cwd: ROOT,
@@ -226,13 +256,38 @@ try {
   assert.ok(gateState.buttons.every((button) => button.disabled), 'Muse actions are disabled before login');
   await cdp.screenshot('01-gate-locked.png');
 
+  // 1b. In-app Muse setup: empty slot -> URL + bridge selectors saved by UI.
+  await cdp.eval(`document.querySelector('[data-action="config-muse"]').click()`);
+  await waitFor(() => cdp.eval(`Boolean(document.querySelector('form[data-form="muse-config"]'))`), { label: 'Muse config modal' });
+  await cdp.screenshot('01b-muse-config.png');
+  await cdp.eval(`(() => {
+    const form = document.querySelector('form[data-form="muse-config"]');
+    form.querySelector('[name="url"]').value = ${JSON.stringify(portalUrl)};
+    form.querySelector('[name="bridge_mode"]').value = 'auto';
+    form.querySelector('[name="bridge_input_selector"]').value = '#muse-input';
+    form.querySelector('[name="bridge_send_selector"]').value = '#muse-send';
+    form.querySelector('[name="bridge_response_selector"]').value = '#muse-response';
+    form.querySelector('[name="bridge_wait_timeout_ms"]').value = '20000';
+    form.requestSubmit();
+    return true;
+  })()`);
+  await waitFor(() => cdp.eval(`!document.querySelector('form[data-form="muse-config"]') && document.getElementById('museChip')?.textContent.includes('chưa đăng nhập')`), { label: 'Muse config saved' });
+  const configuredStatus = await apiGet('/api/muse/status');
+  assert.equal(configuredStatus.configured, true, 'Muse URL is configured through the UI');
+  assert.equal(configuredStatus.loginCheckConfigured, false, 'login signal is not invented before measuring');
+  assert.equal(configuredStatus.url, portalUrl);
+
   // 2. Demo load and input readiness.
   await cdp.eval(`document.querySelector('.sidebar [data-action="demo-load"]').click()`);
   await waitFor(() => cdp.eval(`document.querySelectorAll('.comment-row').length === 5`), { label: 'demo comments' });
   await cdp.eval(`document.querySelector('.step-nav [data-action="go-step"][data-step="3"]').click()`);
   await waitFor(() => cdp.eval(`document.querySelector('#inputPanel .badge')?.textContent.includes('SẴN SÀNG')`), { label: 'input ready' });
   assert.equal((await apiGet('/api/plan/input')).ready, true);
-  await waitFor(() => cdp.eval(`Boolean(document.querySelector('webview'))`), { label: 'embedded Muse webview' });
+  await waitFor(
+    () =>
+      cdp.eval(`(() => { try { return document.querySelector('webview')?.getURL() === ${JSON.stringify(portalUrl)}; } catch { return false; } })()`),
+    { label: 'embedded Muse webview loaded' },
+  );
   const moduleGate = await cdp.eval(`(() => ({
     card: document.querySelector('.gate-message')?.textContent,
     buttons: [...document.querySelectorAll('[data-muse-action]')].map((button) => ({ action: button.dataset.museAction, disabled: button.disabled })),
@@ -240,7 +295,7 @@ try {
   }))()`);
   assert.equal(moduleGate.card, GATE, 'exact Muse gate message is repeated in Module 3');
   assert.ok(moduleGate.buttons.every((button) => button.disabled), 'Muse actions remain disabled before login');
-  assert.equal(moduleGate.webviewUrl, config.muse.url, 'embedded webview loads the configured Muse URL');
+  assert.equal(moduleGate.webviewUrl, portalUrl, 'embedded webview loads the configured Muse URL');
   await cdp.screenshot('02-input-ready.png');
 
   // 3. Invalid plan must be blocked with all required error codes and must not create a plan.
@@ -259,15 +314,31 @@ try {
   assert.equal(workspaceAfterInvalid.workspace.draft_plan, null, 'invalid plan is not stored');
   await cdp.screenshot('03-invalid-plan-blocked.png');
 
-  // 4. Login via the embedded browser; server verification unlocks Muse actions.
+  // 4. Login via the embedded browser, then measure the real login window's cookies
+  //    through the UI; server verification unlocks Muse actions.
   const loggedInInsideFrame = await cdp.eval(`(async () => {
     const webview = document.querySelector('webview');
     return webview.executeJavaScript("(() => { const button = document.querySelector('#muse-login'); if (!button) return 'already'; button.click(); return 'clicked'; })()");
   })()`);
   assert.ok(['clicked', 'already'].includes(loggedInInsideFrame));
   await sleep(1200);
+  await cdp.eval(`document.querySelector('[data-action="config-muse"]').click()`);
+  await waitFor(() => cdp.eval(`Boolean(document.querySelector('form[data-form="muse-config"]'))`), { label: 'Muse config modal for measurement' });
+  await cdp.eval(`document.querySelector('[data-action="measure-muse-session"]').click()`);
+  await waitFor(() => cdp.eval(`document.querySelectorAll('[data-muse-cookie]').length > 0`), { timeout: 40000, label: 'Muse login window cookie measurement' });
+  const measuredCookies = await cdp.eval(`(() => ({
+    all: [...document.querySelectorAll('[data-muse-cookie]')].map((input) => input.value),
+    checked: [...document.querySelectorAll('[data-muse-cookie]:checked')].map((input) => input.value)
+  }))()`);
+  assert.ok(measuredCookies.all.includes('muse_test_session'), 'login window measurement reads the real session cookie name');
+  assert.ok(measuredCookies.checked.includes('muse_test_session'), 'session cookie is preselected as login signal');
+  await cdp.screenshot('04a-muse-session-measured.png');
+  await cdp.eval(`document.querySelector('[data-action="apply-muse-measurement"]').click()`);
+  await waitFor(() => cdp.eval(`document.getElementById('museChip')?.textContent.includes('đã đăng nhập')`), { label: 'Muse login verification after measurement' });
+  const measuredLoginStatus = await apiGet('/api/muse/status');
+  assert.equal(measuredLoginStatus.loginCheckConfigured, true, 'measured cookie is saved as login signal');
+  assert.equal(measuredLoginStatus.loggedIn, true, 'Muse gate unlocks from the measured session');
   await cdp.eval(`document.querySelector('[data-action="verify-muse"]').click()`);
-  await waitFor(() => cdp.eval(`document.getElementById('museChip')?.textContent.includes('đã đăng nhập')`), { label: 'Muse login verification' });
   const unlockedState = await cdp.eval(`[...document.querySelectorAll('[data-muse-action]')].map((button) => ({ action: button.dataset.museAction, disabled: button.disabled }))`);
   assert.ok(unlockedState.every((button) => button.disabled === false), 'Muse actions unlock after verified login');
   await cdp.screenshot('04-muse-unlocked.png');

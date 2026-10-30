@@ -8,6 +8,7 @@
     "start": "electron .",
     "test": "node --test tests/unit/*.test.js",
     "test:e2e": "node tests/e2e/run.mjs",
+    "test:live-production": "node scripts/live-production-e2e.mjs",
     "assets:demo": "node scripts/build-demo-assets.mjs",
     "doctor": "node scripts/doctor.mjs"
   },

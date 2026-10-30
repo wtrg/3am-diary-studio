@@ -100,3 +100,22 @@ Ba tiêu chí nghiệm thu bắt buộc đều PASS bằng test tự động và
 - Sửa tay thay đổi plan và MP4 thành phẩm; job giữ plan khi lỗi.
 
 Phần chưa hoàn tất đúng phạm vi phase này: rule Muse chi tiết, kết nối Muse thật, renderer cuối, live Threads với tài khoản thật, đóng gói thương mại.
+
+## 6. Bổ sung production + Muse setup (2026-10-31)
+
+| Kiểm tra | Kết quả | Bằng chứng |
+|---|---|---|
+| Cấu hình Muse ngay trong app (URL + bridge) | PASS | E2E: mở modal, lưu URL/selector, `/api/muse/status` báo configured |
+| Mở cửa sổ đăng nhập Muse riêng | PASS | E2E: `POST /api/muse/session/open`, cửa sổ `persist:muse` mở trang portal |
+| Đo cookie phiên thật, không lưu giá trị | PASS | E2E: đo được `muse_test_session`, checkbox chọn, lưu `cookie_names`, gate mở |
+| Không tự nhận đăng nhập khi còn ô mật khẩu | PASS | UI không tự check cookie khi `hasPasswordField=true` |
+| Prompt gửi Muse có contract + rule + lỗi | PASS | Unit test `buildPrompt`; E2E bridge trả plan hợp lệ |
+| Chụp post/comment thật, cắt đúng khung | PASS (live) | `.sample/live-prod-screens/post.png` + 3 comment PNG từ job production |
+| Không còn ảnh bị tối bởi login backdrop | PASS | Đã ẩn backdrop `z-index:auto`; frame thẻ trắng trong `.sample/live-frames/` |
+| Thiếu ảnh chụp → dừng job, không vẽ thẻ giả | PASS (code path) | `SCREENSHOT_MATCH_FAILED`; chưa có test tự động riêng |
+| Production renderer qua hàng đợi | PASS (live) | `npm run test:live-production`: job done, 4 screenshot, 60s, 576×1024@30, ~3.2 MB |
+| GIF/clip meme + SFX + nền + nhạc + watermark | PASS | Frame production: GIF/ảnh meme, watermark `@3am.diary.demo`, mark 3AM; audio trong MP4 |
+| Renderer production thiếu file → giữ plan | PASS | Renderer throw, JobQueue giữ plan (integration test cho job retry; nhánh screenshot chưa tự động) |
+| Unit + E2E toàn repo | PASS | 35/35 unit; E2E PASS gồm cấu hình/login đo phiên/bridge/render |
+| Voice/TTS tiếng Việt tự sinh | **CHƯA** | Renderer chỉ dùng `voiceTrackPath` nếu có file giọng |
+| Muse thật (URL/tài khoản nhà cung cấp) | **CHƯA TEST** | Chỉ test local Muse portal; cần URL/tài khoản thật để chốt selector/cookie |

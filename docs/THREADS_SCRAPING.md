@@ -164,3 +164,17 @@ Kết luận:
 - Anonymous search phụ thuộc chính sách Threads; có thể trả ít hoặc login wall. Account mode cần test với tài khoản/Region người mua.
 - Không scrape nội dung private, không tự đăng, không tương tác, không vượt CAPTCHA/rate limit; chỉ dùng nội dung public và có quyền sử dụng.
 - Nên thêm cache/rate limit theo người dùng trước khi bán; hiện có giới hạn 20 bài/lần và một discovery đồng thời.
+
+## 8. Chụp ảnh post/comment thật cho renderer production (2026-10-31)
+
+- `app/main/threads/screenshot.js` mở bài bằng Chromium ẩn, ẩn modal đăng nhập **và backdrop tối `rgba(0,0,0,0.7)` có `z-index:auto`**. Trước khi sửa, mọi ảnh chụp bị tối 70%; sau khi sửa, thẻ trắng/theme sáng của Threads được giữ đúng.
+- Tìm element nhỏ nhất (div/article/section) chứa đồng thời **author + text nguyên văn**, chọn theo diện tích/điểm card, cuộn vào khung, đo rect và `capturePage` với padding 2px, bo góc bằng ffmpeg.
+- Không tìm thấy post/comment → `SCREENSHOT_MATCH_FAILED`; modal đăng nhập còn che → `SCREENSHOT_BLOCKED_BY_LOGIN`; job dừng, **không vẽ thẻ giả**, plan được giữ.
+- Renderer production dùng ảnh PNG thật; scale rộng 528px, intro post 2.6s, mỗi segment dùng đúng ảnh comment; hỗ trợ meme ảnh/GIF/clip, SFX, nhạc 0.20, watermark.
+- Live 2026-10-31 qua **job queue** (không phải script renderer trực tiếp): bài `faenight`, 7 bình luận tải được, chọn 3 → 4 ảnh chụp thật (post + 3 comment), MP4 60s 576×1024@30fps ~3.2 MB. Ảnh/MP4 bằng chứng ở `.sample/live-prod-screens/`, `.sample/live-production-e2e.mp4` (không commit).
+- Chạy lại:
+  ```bash
+  npm run test:live-production
+  ```
+  Script dùng Threads thật (hoặc `LIVE_THREADS_URL`), tạo job qua API, kiểm tra renderer production, số screenshot, ffprobe 576×1024/30fps/60s.
+- Giới hạn: chưa có test tự động riêng cho nhánh thiếu ảnh; DOM Threads thay đổi có thể làm match fail (job báo lỗi, không tự bịa). Theme sáng phụ thuộc trang guest; có thể bật `THREADS_SCREENSHOT_LIGHT=1` nếu Threads trả dark.

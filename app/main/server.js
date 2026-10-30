@@ -180,6 +180,12 @@ class LocalServer {
     }));
     this.threadsLoginState = options.threadsLoginState;
     this.openThreadsLoginWindow = options.openThreadsLoginWindow;
+    this.openMuseLoginWindow = options.openMuseLoginWindow || (async () => {
+      throw httpError(501, 'MUSE_LOGIN_WINDOW_UNAVAILABLE', 'Cửa sổ đăng nhập Muse chưa được khởi tạo.');
+    });
+    this.measureMuseSession = options.measureMuseSession || (async () => {
+      throw httpError(501, 'MUSE_SESSION_MEASURE_UNAVAILABLE', 'Chưa khởi tạo được bộ đo phiên Muse.');
+    });
     this.threadsDiscoverBusy = false;
     this.isOnline = options.isOnline || (() => true);
     this.quit = options.quit || (() => {});
@@ -453,6 +459,21 @@ class LocalServer {
     if (pathname === '/api/muse/status' && method === 'GET') {
       return json(res, 200, this.muse.status());
     }
+    if (pathname === '/api/muse/config' && method === 'POST') {
+      const body = await readJsonBody(req);
+      this.ruleSlot.saveConfig(body);
+      this.muse.loggedIn = false;
+      this.muse.verifiedAt = null;
+      return json(res, 200, { ok: true, status: this.muse.status() });
+    }
+    if (pathname === '/api/muse/session/open' && method === 'POST') {
+      const result = await this.openMuseLoginWindow();
+      return json(res, 200, { ok: true, window: result, status: this.muse.status() });
+    }
+    if (pathname === '/api/muse/session/measure' && method === 'POST') {
+      const result = await this.measureMuseSession();
+      return json(res, 200, result);
+    }
     if (pathname === '/api/muse/verify' && method === 'POST') {
       const body = await readJsonBody(req);
       const result = await this.muse.verify({ webContentsId: body.webContentsId });
@@ -465,8 +486,11 @@ class LocalServer {
     }
     if (pathname === '/api/muse/bridge/send' && method === 'POST') {
       const body = await readJsonBody(req, 8 * 1024 * 1024);
-      const result = await this.muse.sendPrompt({ webContentsId: body.webContentsId, text: body.text || '' });
-      return json(res, 200, result);
+      const text = body.input
+        ? this.ruleSlot.buildPrompt(body.input, Array.isArray(body.errors) ? body.errors : [])
+        : body.text || '';
+      const result = await this.muse.sendPrompt({ webContentsId: body.webContentsId, text });
+      return json(res, 200, { ...result, prompt: text });
     }
 
     if (pathname === '/api/threads/session' && method === 'GET') {

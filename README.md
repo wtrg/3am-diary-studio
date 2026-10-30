@@ -2,7 +2,7 @@
 
 Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình luận Threads đổi theo từng đoạn, hook mở đầu, meme/Clip ngắn ở điểm ngắt, watermark kênh và nhạc nền nhỏ.
 
-Đây là **phase frontend**: đã có 4 module, contract Muse, login gate, kho file, hàng đợi và **renderer demo** xuất MP4 thật. **Chưa viết rule Muse**, **chưa làm renderer cuối**, **không tự đăng video**.
+Đây là **phase frontend + production renderer**: 4 module, contract Muse, login gate, kho file, hàng đợi, renderer production dùng **ảnh chụp Threads thật** và xuất MP4 thật. Muse có thể cấu hình và đăng nhập **ngay trong app**; rule chi tiết vẫn là slot, **không tự đăng video**.
 
 ## 1. Trạng thái phase này
 
@@ -12,12 +12,15 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 | Login gate Muse (khóa toàn bộ nút gọi Muse) | Đã xong, kiểm tra server-side |
 | Contract input/output + validate | Đã xong, chặn ID lạ / text sai |
 | Kho file (id bất biến, tag, preview, CRUD) | Đã xong |
-| Trình duyệt Muse tích hợp (`<webview>`) | Đã xong; cần điền `config/muse_rule.json` thật |
+| Trình duyệt Muse tích hợp (`<webview>`) | Đã xong, có **Cấu hình Muse** ngay trong app |
+| Cửa sổ đăng nhập Muse + đo cookie phiên | Đã xong, kiểm thử bằng local Muse portal |
 | Threads scraper + login Threads | Đã xong, có live smoke |
 | Tìm bài theo chủ đề (discovery) | Đã xong: ẩn danh/tài khoản, lọc bài mới, điểm xu hướng |
 | Hàng đợi + xem/tải MP4 + lịch sử + retry | Đã xong |
-| Renderer cuối (voice/TTS, clip meme, style cuối) | **Chưa** — đang là renderer demo |
-| Rule chi tiết cho Muse | **Chưa** — chỉ có slot config |
+| Chụp ảnh post/comment thật, cắt khung | Đã xong, live; thiếu ảnh thì dừng job |
+| Renderer production (thẻ trắng, GIF/clip, SFX, watermark) | Đã xong; chưa tự TTS |
+| Prompt gửi Muse (contract + rule slot + lỗi cần sửa) | Đã xong |
+| Rule chi tiết cho Muse | **Chưa** — vẫn là slot; prompt tự sinh contract |
 | Tự đăng TikTok/Facebook | **Không làm** |
 
 ## 2. Chạy local
@@ -77,11 +80,19 @@ Nút **Mở thư mục dữ liệu** trong sidebar mở đúng thư mục này.
    - Sửa tiêu đề hook, đổi meme/SFX/nhạc, đổi thứ tự, rồi **Duyệt & lưu kế hoạch**.
 5. **Bước 4**: **Đưa vào hàng đợi & dựng** ví dụ; job chờ → đang dựng → xong. Xem video, tải MP4, xem snapshot plan. Nếu lỗi, plan được giữ nguyên và có nút **Chạy lại**.
 
-Video demo mẫu do renderer demo tạo: 576×1024, 30fps, 60 giây, ~3.4 MB. Renderer demo chưa có giọng đọc/TTS và chưa hỗ trợ meme clip (chọn meme ảnh), đây không phải renderer bán hàng cuối.
+Bài demo dùng renderer demo (thẻ vẽ, 576×1024@30, 60 giây). **Bài Threads live tự dùng renderer production**: chụp post/comment thật, cắt khung, thẻ trắng giống mẫu, meme ảnh/GIF/clip, SFX, nền, nhạc, watermark. Cả hai chưa tự TTS; có thể truyền `voiceTrackPath` khi có file giọng.
 
 ## 4. Cấu hình Muse (slot `muse_rule`)
 
-Mở **`config/muse_rule.json`** và điền thông tin thật do bên bán/người dùng Muse cung cấp:
+### Cách mới: cấu hình và đăng nhập ngay trong app
+
+1. Mở app → banner Muse → **Cấu hình Muse** (hoặc nút cùng tên ở Bước 3).
+2. Nhập **URL trang Muse kèm tool** (bắt buộc `http/https`), điền selector bridge nếu có, bấm **Lưu cấu hình**.
+3. Bấm **Lưu & mở cửa sổ đăng nhập** → đăng nhập Muse trong cửa sổ riêng (partition `persist:muse`, dùng chung với khung Muse). Tool **không lưu mật khẩu**.
+4. Trong cửa sổ đó, bấm **Đo phiên hiện tại** tại modal cấu hình. Tool đọc **tên cookie/khóa localStorage** (không đọc giá trị), hiện checkbox; chọn đúng cookie phiên và bấm **Dùng cookie đã chọn & lưu**.
+5. Tool lưu `cookie_names` vào `config/muse_rule.json`, kiểm tra lại phiên và mở khóa Muse. Nếu trang còn ô mật khẩu, tool không tự chọn cookie (tránh nhận nhầm trạng thái đăng xuất).
+
+Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không cần tắt app sau khi lưu UI; **Tải lại cấu hình** đọc lại file.
 
 ```json
 {
@@ -116,9 +127,11 @@ Mở **`config/muse_rule.json`** và điền thông tin thật do bên bán/ngư
 - **`muse.url`** + ít nhất một tín hiệu đăng nhập (`cookie_names` hoặc selector) mới bật được khung Muse và gate. Không cấu hình thì tool khóa Muse — đây là chủ ý, **không có chế độ “coi như đã đăng nhập”**.
 - Nút **Tải lại cấu hình** trong Bước 3 đọc lại file mà không cần tắt app.
 - Nếu điền `input_selector`, `send_selector`, `response_selector`, nút **Gửi input & nhận kế hoạch từ Muse** dùng bridge tự động. Không thì dùng copy JSON → Muse → dán JSON về.
-- **`rule.prompt` đang để trống có chủ ý** — phase này chưa viết rule. Có thể gắn rule chi tiết vào đây ở phase sau. Frontend không chèn rule tự chế.
+- **Prompt gửi Muse** do `MuseRuleSlot.buildPrompt` ghép: contract JSON, ràng buộc text nguyên văn/ID hợp lệ, rule bổ sung (nếu có) và danh sách lỗi lần trước (nếu có). Nội dung chọn bình luận/meme/nhạc vẫn do Muse quyết; frontend không tự quyết.
+- **`rule.prompt` đang để trống có chủ ý** — slot cho rule chi tiết. Prompt contract vẫn hoạt động khi slot trống. Có thể điền rule thật ở phase sau.
 - **Plan mẫu test tự tắt khi `rule.prompt` có nội dung.** Đây là chốt an toàn: khi rule Muse thật đã gắn, không còn đường tạo kế hoạch test không qua Muse. Có thể tắt sớm hơn bằng `test_options.enable_sample_plan: false`.
 - Trang login Muse có thể mở popup (OAuth). Main process mở popup cùng partition; không lưu mật khẩu.
+- Đăng nhập/đo phiên dùng chung partition `persist:muse`; cấu hình chỉ lưu **tên** cookie/selector, không lưu giá trị cookie hay mật khẩu.
 
 Câu bắt buộc hiển thị khi chưa đăng nhập (không thay đổi):
 
@@ -201,22 +214,29 @@ node_modules/electron/dist/electron.exe scripts/live-threads-smoke.js "<threads-
 node_modules/electron/dist/electron.exe scripts/live-threads-discover.js "mèo" 5 72
 ```
 
-## 7. Renderer slot
+## 7. Renderer production
 
-- Interface: `app/main/render/index.js` → adapter `render(ctx)`.
-- Demo: `app/main/render/demoRenderer.js` dùng ffmpeg, tạo MP4 576×1024@30fps, hook + thẻ bình luận + meme ảnh + nền + nhạc/SFX + watermark.
-- Renderer cuối gắn vào `adapters` ở `app/main/render/index.js`; UI đọc metadata và cảnh báo nếu chưa `production`.
-- Demo chưa có TTS/voiceover và chưa hỗ trợ meme clip; lỗi rõ ràng, job giữ plan để chạy lại. Không dùng AI khác thay Muse để bịa nội dung.
+- Interface: `app/main/render/index.js` → adapter `render(ctx)`. Tự chọn **demo** cho bài demo, **production** cho bài Threads live; có thể ép bằng `RENDERER_ADAPTER=demo|production`.
+- Production: `app/main/render/productionRenderer.js` + `app/main/threads/screenshot.js`.
+  - Mở Threads bằng Electron ẩn, ẩn modal/login backdrop (kể cả backdrop `z-index:auto`), tìm element nhỏ nhất chứa đủ author + text, chụp `capturePage` đúng khung post/comment, bo góc PNG.
+  - Thẻ dùng ảnh chụp thật; **thiếu ảnh nào thì throw `SCREENSHOT_MATCH_FAILED`, job lỗi, không vẽ thẻ giả**.
+  - Video 576×1024@30, 60–90 giây: intro post 2.6s, thẻ bình luận đổi theo segment, meme ảnh/**GIF động**/clip video, SFX, nhạc 0.20, watermark + mark 3AM; hỗ trợ `voiceTrackPath` nếu có file giọng.
+  - Ảnh chụp mặc định giữ theme sáng của Threads; nếu DOM đổi dark, đặt `THREADS_SCREENSHOT_LIGHT=1` để áp thẻ sáng (chỉ đổi màu, không đổi chữ).
+- Renderer demo vẫn dùng cho dữ liệu demo, không dùng ảnh giả cho bài live. Không dùng AI khác thay Muse để bịa nội dung.
+- Voice/TTS: **chưa tự sinh**; renderer nhận file giọng nếu job truyền `voiceTrackPath`.
 
 ## 8. Kiểm thử
 
 ```bash
-npm test          # 31 unit + integration test: contract, library, parser, discovery, gate, job retry, download
-npm run test:e2e  # Electron thật + local Muse test portal + render MP4 thật
+npm test                  # 35 unit + integration test: contract, library, parser, discovery, Muse config/prompt, gate, job retry, download
+npm run test:e2e          # Electron thật: cấu hình Muse trong UI → mở cửa sổ login → đo cookie → bridge → render MP4
+npm run test:live-production  # LIVE: Threads thật → job queue → chụp post/comment thật → production MP4
 ```
 
 E2E sẽ tạo screenshot và MP4 tại `artifacts/e2e/` (thư mục này **không commit lên repo public**; đặc biệt ảnh live Threads chứa nội dung bên thứ ba):
-`01-gate-locked.png`, `03-invalid-plan-blocked.png`, `04-muse-unlocked.png`, `05-muse-plan.png`, `06-approved.png`, `07-job-done.png`, `11-live-threads.png`, `12-discovery.png`, `13-discovery-selected.png`, `demo-final.mp4`.
+`01-gate-locked.png`, `01b-muse-config.png`, `03-invalid-plan-blocked.png`, `04a-muse-session-measured.png`, `04-muse-unlocked.png`, `05-muse-plan.png`, `06-approved.png`, `07-job-done.png`, `11-live-threads.png`, `12-discovery.png`, `13-discovery-selected.png`, `demo-final.mp4`.
+
+`npm run test:live-production` ghi MP4 + ảnh chụp thật vào `.sample/` (không commit) và kiểm tra ffprobe 576×1024/30fps/60s; lần chạy gần nhất lưu 4 ảnh chụp và video ~3.1 MB.
 
 Checklist nghiệm thu chi tiết: [`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md).
 
@@ -224,21 +244,25 @@ Test Muse portal (`tests/muse-portal/server.js` + `tests/fixtures/muse_rule.test
 
 ## 9. Giới hạn & phase sau
 
-- Chưa có URL Muse thật; cần bên bán/người dùng cấu hình `muse_rule.json`. Khi có, kiểm tra login/logout selectors bằng tài khoản thật.
-- Rule Muse chi tiết chưa viết; đang là slot.
-- Threads API/DOM thay đổi có thể làm scraper hỏng; có timeout, lỗi rõ, fixture test. Live smoke ngày 2026-10-31 lấy được 7/13 bình luận công khai; discovery ẩn danh lấy 3/5 và 5/5 bài mới ở hai lần thử. Vẫn cần kiểm tra với tài khoản/Region của người mua trước khi bán.
-- Discovery ẩn danh bị Threads giới hạn tự nhiên (không phải tool cố ý cắt): search logged-out có thể chỉ trả một phần và chặn “Log in for more”. Tool báo đúng số thực tế. Chế độ Tài khoản cần đăng nhập Threads; chưa kiểm thử live với tài khoản thật.
-- Renderer cuối, TTS tiếng Việt, xử lý clip meme, style/typography cuối, đóng gói installer và license là phase sau.
+- **Muse thật:** đã có UI cấu hình, cửa sổ đăng nhập riêng và đo cookie/selector; đã test end-to-end bằng **local Muse test portal**. Chưa có URL/tài khoản Muse thật để xác nhận selector/cookie của nhà cung cấp. Khi có, chỉ cần mở **Cấu hình Muse**, nhập URL, đăng nhập, đo phiên.
+- **Rule Muse chi tiết** vẫn là slot; prompt tự sinh contract + rule bổ sung, không tự chọn nội dung thay Muse.
+- **Threads:** live 2026-10-31, job production qua hàng đợi lấy 7 bình luận công khai, chọn 3, chụp **4 ảnh thật** (post + 3 comment), render 60s 576×1024@30fps ~3.1 MB; thẻ trắng đúng khung, GIF/ảnh meme, SFX, nền, nhạc, watermark. Video/ảnh bằng chứng nằm trong `.sample/` (không commit) và E2E trong `artifacts/` (không commit).
+- **Thiếu ảnh chụp** hoặc DOM Threads đổi cấu trúc → job báo `SCREENSHOT_MATCH_FAILED`, không vẽ thẻ giả, plan được giữ. Chưa có test tự động riêng cho nhánh thiếu ảnh; có thể thêm ở phase sau.
+- **Voice/TTS tiếng Việt chưa tự sinh.** Renderer nhận `voiceTrackPath` nếu có file giọng; sample tham chiếu có voice nhưng tool chưa tạo voice.
+- **Giao diện thẻ** giữ theme sáng thật của Threads; nếu Threads trả dark theme, bật `THREADS_SCREENSHOT_LIGHT=1` để áp thẻ sáng (không đổi chữ/ảnh).
+- Discovery ẩn danh bị Threads giới hạn tự nhiên (không phải tool cố ý cắt): search logged-out có thể chỉ trả một phần và chặn “Log in for more”. Tool báo đúng số thực tế. Chế độ Tài khoản cần đăng nhập Threads.
+- Đóng gói installer/license, style/typography cuối, xử lý clip meme nâng cao là phase sau.
 - Tuân thủ điều khoản Threads/Muse và quyền nội dung khi vận hành thương mại. Tool không tự đăng bài, không vượt login/rate limit.
 
 ## 10. Cấu trúc chính
 
 ```
 app/main/            Electron main, HTTP API local, store, job queue
-  threads/           scraper + parser Threads (có test fixture)
-  render/            renderer slot + demoRenderer
+  threads/           scraper + parser + screenshot Threads (có test fixture)
+  render/            renderer slot + demoRenderer + productionRenderer
   contract.js        input builder + validator
   muse.js            login gate / webview verification / bridge
+  museLogin.js       cửa sổ đăng nhập Muse + đo cookie phiên
 config/muse_rule.json Muse config slot
 renderer/            SPA vanilla (không framework), CSS, app.js
 demo/                dữ liệu demo chó/mèo + sample/invalid plan + assets
