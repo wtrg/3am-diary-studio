@@ -1,9 +1,11 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const { BrowserWindow, session } = require('electron');
 const { MUSE_PARTITION, hostsMatch } = require('./muse');
 
 const SESSION_COOKIE_HINT = /(sess|token|auth|jwt|sid|login|user|remember)/i;
+const STRONG_LOGIN_COOKIE = /^(c_user|xs|sessionid|session|sid|auth_token|access_token|jwt)$/i;
 
 function configError(message, code = 'MUSE_SESSION_ERROR') {
   const error = new Error(message);
@@ -30,11 +32,21 @@ function waitForLoad(contents, timeoutMs = 20000) {
   });
 }
 
+function cookieFingerprint(cookie) {
+  return crypto
+    .createHash('sha256')
+    .update(`${cookie.name}=${cookie.value || ''}`)
+    .digest('hex')
+    .slice(0, 16);
+}
+
 class MuseLoginService {
   constructor({ ruleSlot, getParentWindow }) {
     this.ruleSlot = ruleSlot;
     this.getParentWindow = getParentWindow || (() => null);
     this.window = null;
+    this.baseline = null;
+    this.baselinePromise = null;
   }
 
   state() {
@@ -43,7 +55,40 @@ class MuseLoginService {
       open,
       url: open ? this.window.webContents.getURL() : '',
       partition: MUSE_PARTITION,
+      baselineCaptured: Boolean(this.baseline),
     };
+  }
+
+  async snapshot() {
+    const win = this.window;
+    if (!win || win.isDestroyed()) return null;
+    const url = win.webContents.getURL();
+    if (!/^https?:\/\//i.test(url)) return null;
+    const cookies = await session.fromPartition(MUSE_PARTITION).cookies.get({ url });
+    const fingerprints = {};
+    for (const cookie of cookies) fingerprints[cookie.name] = cookieFingerprint(cookie);
+    let localStorageKeys = [];
+    try {
+      localStorageKeys = await win.webContents.executeJavaScript('Object.keys(localStorage || {})', true);
+    } catch {}
+    return {
+      url,
+      at: new Date().toISOString(),
+      cookies: fingerprints,
+      localStorageKeys: Array.isArray(localStorageKeys) ? localStorageKeys.sort() : [],
+    };
+  }
+
+  captureBaseline() {
+    if (this.baselinePromise) return this.baselinePromise;
+    this.baselinePromise = (async () => {
+      // Cookies may be written just after did-finish-load; wait for the page to settle.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const snapshot = await this.snapshot();
+      if (snapshot && !this.baseline) this.baseline = snapshot;
+      return this.baseline;
+    })();
+    return this.baselinePromise;
   }
 
   open() {
@@ -60,6 +105,8 @@ class MuseLoginService {
       return { ...this.state(), focused: true };
     }
 
+    this.baseline = null;
+    this.baselinePromise = null;
     const parent = this.getParentWindow();
     const win = new BrowserWindow({
       width: 1180,
@@ -101,6 +148,11 @@ class MuseLoginService {
       return { action: 'deny' };
     });
     win.once('ready-to-show', () => win.show());
+    win.webContents.once('did-finish-load', () => {
+      // Capture the pre-login state once, so later measurement can distinguish
+      // genuinely new login cookies from Muse's anonymous auth cookies.
+      void this.captureBaseline().catch(() => {});
+    });
     win.on('closed', () => {
       if (this.window === win) this.window = null;
     });
@@ -134,7 +186,29 @@ class MuseLoginService {
       httpOnly: Boolean(cookie.httpOnly),
       secure: Boolean(cookie.secure),
     }));
-    const suggestedCookieNames = cookies.map((cookie) => cookie.name).filter((name) => SESSION_COOKIE_HINT.test(name));
+
+    const baseline = this.baseline && hostsMatch(this.baseline.url, this.ruleSlot.allowedOrigin()) ? this.baseline : null;
+    const currentFingerprints = new Map(rawCookies.map((cookie) => [cookie.name, cookieFingerprint(cookie)]));
+    const baselineNames = new Set(Object.keys(baseline?.cookies || {}));
+    const newCookieNames = cookies.map((cookie) => cookie.name).filter((name) => !baselineNames.has(name));
+    const changedCookieNames = cookies
+      .map((cookie) => cookie.name)
+      .filter((name) => baselineNames.has(name) && baseline.cookies[name] !== currentFingerprints.get(name));
+    const urlChanged = Boolean(baseline && baseline.url !== url);
+    let suggestedUrlContains = '';
+    if (urlChanged) {
+      try {
+        const pathname = new URL(url).pathname;
+        if (pathname && pathname !== '/') suggestedUrlContains = pathname;
+      } catch {}
+    }
+    // Anonymous Muse cookies such as hatch_native_auth_* exist before login.
+    // Only strong session names, or names that appeared after the logged-out
+    // baseline, are safe to preselect. Everything else stays manual.
+    const suggestedCookieNames = cookies
+      .map((cookie) => cookie.name)
+      .filter((name) => STRONG_LOGIN_COOKIE.test(name) || newCookieNames.includes(name))
+      .filter((name) => name !== 'hatch_native_auth_csrf' && name !== 'hatch_native_auth_temp' && name !== 'hatch_native_auth_device' && name !== 'hatch_native_auth_state');
 
     let localStorageKeys = [];
     let hasPasswordField = false;
@@ -156,11 +230,17 @@ class MuseLoginService {
       title,
       cookies,
       suggestedCookieNames,
+      newCookieNames,
+      changedCookieNames,
+      urlChanged,
+      suggestedUrlContains,
+      baselineCaptured: Boolean(baseline),
+      baselineAt: baseline?.at || null,
       localStorageKeys,
       hasPasswordField,
       measuredAt: new Date().toISOString(),
       note:
-        'Chỉ đọc tên cookie/khóa lưu trữ để tạo tín hiệu đăng nhập. Tool không lưu giá trị cookie hay mật khẩu.',
+        'Chỉ đọc tên cookie/khóa lưu trữ để tạo tín hiệu đăng nhập. Tool không lưu giá trị cookie hay mật khẩu. Cookie mới sau baseline an toàn hơn cookie anonymous.',
     };
   }
 

@@ -484,6 +484,16 @@ class LocalServer {
       this.muse.loggedIn = false;
       return json(res, 200, this.muse.status());
     }
+    if (pathname === '/api/muse/prompt' && method === 'POST') {
+      if (!this.muse.status().loggedIn) {
+        const error = httpError(403, 'MUSE_LOGIN_REQUIRED', this.muse.status().gateMessage);
+        error.gateMessage = this.muse.status().gateMessage;
+        throw error;
+      }
+      const body = await readJsonBody(req, 8 * 1024 * 1024);
+      const prompt = this.ruleSlot.buildPrompt(body.input || {}, Array.isArray(body.errors) ? body.errors : []);
+      return json(res, 200, { prompt });
+    }
     if (pathname === '/api/muse/bridge/send' && method === 'POST') {
       const body = await readJsonBody(req, 8 * 1024 * 1024);
       const text = body.input

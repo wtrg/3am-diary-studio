@@ -38,18 +38,16 @@ class MuseGate {
     const { app } = require('electron');
     if (app) {
       app.on('web-contents-created', (_event, contents) => {
-        if (contents.getType() !== 'webview') return;
         try {
-          if (contents.session === museSession()) {
-            contents.on('did-navigate', () => {
-              this.loggedIn = false;
-              this.verifiedAt = null;
-            });
-            contents.on('did-navigate-in-page', () => {
-              this.loggedIn = false;
-              this.verifiedAt = null;
-            });
-          }
+          if (contents.session !== museSession()) return;
+          contents.on('did-navigate', () => {
+            this.loggedIn = false;
+            this.verifiedAt = null;
+          });
+          contents.on('did-navigate-in-page', () => {
+            this.loggedIn = false;
+            this.verifiedAt = null;
+          });
         } catch {}
       });
     }
@@ -87,17 +85,20 @@ class MuseGate {
     const numeric = Number(id);
     const fromId = Number.isInteger(numeric) ? webContents.fromId(numeric) : null;
     const candidates = fromId ? [fromId] : webContents.getAllWebContents();
+    const matches = [];
     for (const contents of candidates) {
       if (!contents || contents.isDestroyed()) continue;
-      if (contents.getType() !== 'webview') continue;
+      const type = contents.getType();
+      if (type !== 'webview' && type !== 'window') continue;
       try {
         if (contents.session !== museSession()) continue;
       } catch {
         continue;
       }
-      return contents;
+      matches.push(contents);
     }
-    return null;
+    // Prefer the embedded Muse frame, fall back to the standalone login window.
+    return matches.find((contents) => contents.getType() === 'webview') || matches[0] || null;
   }
 
   async verify({ webContentsId } = {}) {
@@ -198,7 +199,7 @@ class MuseGate {
     const bridge = this.rule.config.muse.bridge;
     const contents = this.findWebview(webContentsId) || this.findWebview(this.webContentsId);
     if (!contents) {
-      const error = new Error('Chưa mở khung Muse. Hãy mở Muse trong Module 3 rồi thử lại.');
+      const error = new Error('Chưa mở khung hoặc cửa sổ Muse. Hãy mở Muse trong Module 3 (hoặc cửa sổ đăng nhập) rồi thử lại.');
       error.statusCode = 400;
       error.code = 'MUSE_WEBVIEW_NOT_OPEN';
       throw error;

@@ -105,9 +105,12 @@ Phần chưa hoàn tất đúng phạm vi phase này: rule Muse chi tiết, kế
 
 | Kiểm tra | Kết quả | Bằng chứng |
 |---|---|---|
-| Cấu hình Muse ngay trong app (URL + bridge) | PASS | E2E: mở modal, lưu URL/selector, `/api/muse/status` báo configured |
-| Mở cửa sổ đăng nhập Muse riêng | PASS | E2E: `POST /api/muse/session/open`, cửa sổ `persist:muse` mở trang portal |
-| Đo cookie phiên thật, không lưu giá trị | PASS | E2E: đo được `muse_test_session`, checkbox chọn, lưu `cookie_names`, gate mở |
+| Cấu hình Muse ngay trong app (URL + bridge + rule) | PASS | E2E: mở modal, lưu URL/selector; unit test lưu rule + tăng version |
+| Mở cửa sổ đăng nhập Muse thật | PASS | Probe `https://muse.ai/`: cửa sổ mở đúng “Muse — Your Personal AI Agent”, có ô email/SĐT; ảnh `.sample/real-muse-login.png` |
+| Khung Muse nhúng trang thật | PASS | Probe webview: URL `https://muse.ai/`, title đúng; ảnh `.sample/real-muse-webview.png` |
+| Đo cookie phiên thật, không lưu giá trị | PASS | E2E: baseline đăng xuất → cookie mới `muse_test_session` được gợi ý; gate mở |
+| Không false-unlock bởi cookie anonymous | PASS | Probe muse.ai: `hatch_native_auth_*` có trước/sau baseline nhưng `suggestedCookieNames=[]`; chỉ cookie mới/strong được chọn |
+| Sao chép prompt Muse khi chưa có selector | PASS | Route `/api/muse/prompt` + nút UI; unit/integration test prompt chứa contract/lỗi |
 | Không tự nhận đăng nhập khi còn ô mật khẩu | PASS | UI không tự check cookie khi `hasPasswordField=true` |
 | Prompt gửi Muse có contract + rule + lỗi | PASS | Unit test `buildPrompt`; E2E bridge trả plan hợp lệ |
 | Chụp post/comment thật, cắt đúng khung | PASS (live) | `.sample/live-prod-screens/post.png` + 3 comment PNG từ job production |
@@ -120,4 +123,5 @@ Phần chưa hoàn tất đúng phạm vi phase này: rule Muse chi tiết, kế
 | Renderer production thiếu file → giữ plan | PASS | Renderer throw, JobQueue giữ plan (integration test cho job retry; nhánh screenshot chưa tự động) |
 | Unit + E2E toàn repo | PASS | 39/39 unit; E2E PASS gồm cấu hình/login đo phiên/bridge/render |
 | Voice/TTS tiếng Việt tự sinh | **CHƯA** | Renderer chỉ dùng `voiceTrackPath` nếu có file giọng |
-| Muse thật (URL/tài khoản nhà cung cấp) | **CHƯA TEST** | Chỉ test local Muse portal; cần URL/tài khoản thật để chốt selector/cookie |
+| Muse thật: mở trang/login window | PASS | `https://muse.ai/` mở đúng; chưa đăng nhập tài khoản thật |
+| Muse thật: đăng nhập + cookie sau login + bridge selector | **CHƯA TEST** | Không có credential/selector thật trong phiên này; người dùng đăng nhập rồi Đo phiên |

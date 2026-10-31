@@ -277,6 +277,11 @@ try {
   assert.equal(configuredStatus.loginCheckConfigured, false, 'login signal is not invented before measuring');
   assert.equal(configuredStatus.url, portalUrl);
 
+  // Open the real login window BEFORE logging in so the tool captures a
+  // logged-out baseline and can distinguish new login cookies.
+  await cdp.eval(`document.querySelector('[data-action="open-muse-login"]').click()`);
+  await sleep(2600);
+
   // 2. Demo load and input readiness.
   await cdp.eval(`document.querySelector('.sidebar [data-action="demo-load"]').click()`);
   await waitFor(() => cdp.eval(`document.querySelectorAll('.comment-row').length === 5`), { label: 'demo comments' });
@@ -328,10 +333,12 @@ try {
   await waitFor(() => cdp.eval(`document.querySelectorAll('[data-muse-cookie]').length > 0`), { timeout: 40000, label: 'Muse login window cookie measurement' });
   const measuredCookies = await cdp.eval(`(() => ({
     all: [...document.querySelectorAll('[data-muse-cookie]')].map((input) => input.value),
-    checked: [...document.querySelectorAll('[data-muse-cookie]:checked')].map((input) => input.value)
+    checked: [...document.querySelectorAll('[data-muse-cookie]:checked')].map((input) => input.value),
+    note: document.getElementById('museMeasureResult')?.innerText || ''
   }))()`);
   assert.ok(measuredCookies.all.includes('muse_test_session'), 'login window measurement reads the real session cookie name');
-  assert.ok(measuredCookies.checked.includes('muse_test_session'), 'session cookie is preselected as login signal');
+  assert.ok(measuredCookies.checked.includes('muse_test_session'), 'new login cookie is preselected as login signal');
+  assert.match(measuredCookies.note, /baseline đăng xuất/i, 'measurement reports the logged-out baseline');
   await cdp.screenshot('04a-muse-session-measured.png');
   await cdp.eval(`document.querySelector('[data-action="apply-muse-measurement"]').click()`);
   await waitFor(() => cdp.eval(`document.getElementById('museChip')?.textContent.includes('đã đăng nhập')`), { label: 'Muse login verification after measurement' });

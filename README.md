@@ -13,7 +13,9 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 | Contract input/output + validate | Đã xong, chặn ID lạ / text sai |
 | Kho file (id bất biến, tag, preview, CRUD) | Đã xong |
 | Trình duyệt Muse tích hợp (`<webview>`) | Đã xong, có **Cấu hình Muse** ngay trong app |
-| Cửa sổ đăng nhập Muse + đo cookie phiên | Đã xong, kiểm thử bằng local Muse portal |
+| Cửa sổ đăng nhập Muse + đo cookie phiên | Đã xong; mở đúng `https://muse.ai/` thật + test portal; chưa đăng nhập tài khoản thật |
+| Baseline đăng xuất chống false-unlock | Đã xong; cookie anonymous không được tự chọn |
+| Sao chép prompt Muse (khi chưa có selector) | Đã xong |
 | Threads scraper + login Threads | Đã xong, có live smoke |
 | Tìm bài theo chủ đề (discovery) | Đã xong: ẩn danh/tài khoản, lọc bài mới, điểm xu hướng |
 | Hàng đợi + xem/tải MP4 + lịch sử + retry | Đã xong |
@@ -87,11 +89,12 @@ Bài demo dùng renderer demo (thẻ vẽ, 576×1024@30, 60 giây). **Bài Threa
 
 ### Cách mới: cấu hình và đăng nhập ngay trong app
 
-1. Mở app → banner Muse → **Cấu hình Muse** (hoặc nút cùng tên ở Bước 3).
-2. Nhập **URL trang Muse kèm tool** (bắt buộc `http/https`), điền selector bridge nếu có, bấm **Lưu cấu hình**.
-3. Bấm **Lưu & mở cửa sổ đăng nhập** → đăng nhập Muse trong cửa sổ riêng (partition `persist:muse`, dùng chung với khung Muse). Tool **không lưu mật khẩu**.
-4. Trong cửa sổ đó, bấm **Đo phiên hiện tại** tại modal cấu hình. Tool đọc **tên cookie/khóa localStorage** (không đọc giá trị), hiện checkbox; chọn đúng cookie phiên và bấm **Dùng cookie đã chọn & lưu**.
-5. Tool lưu `cookie_names` vào `config/muse_rule.json`, kiểm tra lại phiên và mở khóa Muse. Nếu trang còn ô mật khẩu, tool không tự chọn cookie (tránh nhận nhầm trạng thái đăng xuất).
+1. Mở app → banner Muse → **Cấu hình Muse** (hoặc nút cùng tên ở Bước 3). URL đã điền sẵn `https://muse.ai/` (Muse AI của Meta); có thể đổi nếu nhà cung cấp khác.
+2. Điền selector bridge nếu có, bấm **Lưu cấu hình**.
+3. Bấm **Lưu & mở cửa sổ đăng nhập** **trước khi đăng nhập** → đăng nhập Muse trong cửa sổ riêng (partition `persist:muse`, dùng chung với khung Muse). Tool **không lưu mật khẩu**; đã kiểm tra cửa sổ này mở đúng trang Muse thật.
+4. Trong cửa sổ đó, bấm **Đo phiên hiện tại** tại modal cấu hình. Tool đã chụp **baseline đăng xuất** khi mở cửa sổ; sau khi đăng nhập, nó chỉ gợi ý cookie **mới xuất hiện** hoặc cookie phiên mạnh (`c_user`, `xs`, `sessionid`…). Cookie anonymous như `hatch_native_auth_*` **không được tự chọn**.
+5. Chọn đúng cookie (và/hoặc bấm **Dùng URL đăng nhập** nếu URL đổi) → **Dùng tín hiệu đã chọn & lưu**. Tool lưu vào `config/muse_rule.json`, kiểm tra lại phiên và mở khóa Muse.
+6. Nếu chưa biết selector bridge, bấm **Sao chép prompt gửi Muse**, dán sang Muse (khung hoặc cửa sổ), rồi dán JSON trả về vào ô “Dán kết quả Muse”.
 
 Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không cần tắt app sau khi lưu UI; **Tải lại cấu hình** đọc lại file.
 
@@ -132,6 +135,8 @@ Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không
 - **`rule.prompt` sửa được ngay trong “Cấu hình Muse”** (ô “Rule / prompt bổ sung”) hoặc trong file. Rule được chèn vào đầu prompt gửi Muse; phiên bản tự tăng khi nội dung đổi. Mặc định đang trống.
 - **Plan mẫu test tự tắt khi `rule.prompt` có nội dung.** Đây là chốt an toàn: khi rule Muse thật đã gắn, không còn đường tạo kế hoạch test không qua Muse. Có thể tắt sớm hơn bằng `test_options.enable_sample_plan: false`.
 - Khi Muse trả kế hoạch sai, UI có nút **“Gửi lỗi cho Muse sửa”**: gửi lại input + danh sách lỗi validate để Muse trả JSON mới; tool vẫn không tự sửa.
+- Nếu chưa cấu hình bridge selector, **Sao chép prompt gửi Muse** tạo prompt đầy đủ (contract + rule + input + lỗi) để dán thủ công; không cần bridge tự động.
+- **Baseline đăng xuất:** mở cửa sổ đăng nhập trước khi login. Tool chỉ gợi ý cookie mới/strong session, không gợi ý cookie anonymous `hatch_native_auth_*` của muse.ai. Nếu không có baseline, tool không tự chọn cookie; người dùng chọn tay.
 - Trang login Muse có thể mở popup (OAuth). Main process mở popup cùng partition; không lưu mật khẩu.
 - Đăng nhập/đo phiên dùng chung partition `persist:muse`; cấu hình chỉ lưu **tên** cookie/selector, không lưu giá trị cookie hay mật khẩu.
 
@@ -246,7 +251,8 @@ Test Muse portal (`tests/muse-portal/server.js` + `tests/fixtures/muse_rule.test
 
 ## 9. Giới hạn & phase sau
 
-- **Muse thật:** đã có UI cấu hình, cửa sổ đăng nhập riêng và đo cookie/selector; đã test end-to-end bằng **local Muse test portal**. Chưa có URL/tài khoản Muse thật để xác nhận selector/cookie của nhà cung cấp. Khi có, chỉ cần mở **Cấu hình Muse**, nhập URL, đăng nhập, đo phiên.
+- **Muse thật:** URL đã cấu hình sẵn `https://muse.ai/`; đã mở thành công cả cửa sổ đăng nhập riêng và khung Muse nhúng, thấy đúng trang “Muse — Your Personal AI Agent” (ảnh local `.sample/real-muse-login.png`, `.sample/real-muse-webview.png`). **Chưa đăng nhập bằng tài khoản thật** (không có credential trong phiên này), nên chưa xác nhận được cookie/URL sau đăng nhập và selector bridge của Muse. Người dùng chỉ cần mở Cấu hình Muse → mở cửa sổ đăng nhập → đăng nhập → Đo phiên.
+- **Bridge tự động Muse:** cần selector thật (ô chat, nút gửi, vùng trả lời). Khi chưa có, dùng **Sao chép prompt gửi Muse** + dán JSON trả về; đây là luồng thật, không phải fallback AI.
 - **Rule Muse chi tiết** vẫn là slot; prompt tự sinh contract + rule bổ sung, không tự chọn nội dung thay Muse.
 - **Threads:** live 2026-10-31, job production qua hàng đợi lấy 7 bình luận công khai, chọn 3, chụp **4 ảnh thật** (post + 3 comment), render 60s 576×1024@30fps ~3.1 MB; thẻ trắng đúng khung, GIF/ảnh meme, SFX, nền, nhạc, watermark. Video/ảnh bằng chứng nằm trong `.sample/` (không commit) và E2E trong `artifacts/` (không commit).
 - **Thiếu ảnh chụp** hoặc DOM Threads đổi cấu trúc → job báo `SCREENSHOT_MATCH_FAILED`, không vẽ thẻ giả, plan được giữ. Guard này có unit test riêng (`productionGuards.test.js`) cho thiếu ảnh post/comment.

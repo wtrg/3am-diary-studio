@@ -842,9 +842,12 @@ function museActionsHtml() {
             ${
               bridgeReady
                 ? 'Bridge tự động dùng selector trong muse_rule.json. Không tự tạo kết quả nếu Muse không trả JSON.'
-                : 'Bridge tự động chưa cấu hình (input_selector / send_selector / response_selector). Hãy copy JSON sang Muse và dán kết quả bên dưới.'
+                : 'Bridge tự động chưa cấu hình (input_selector / send_selector / response_selector). Hãy copy prompt sang Muse và dán kết quả bên dưới.'
             }
           </div>
+          <button class="btn btn-sm btn-ghost" data-action="copy-muse-prompt" data-muse-action="copy" ${disabledBase || state.busy.bridge ? 'disabled' : ''} title="${esc(gate)}">
+            Sao chép prompt gửi Muse
+          </button>
         </div>
         <div class="hr"></div>
         <div class="manual-box">
@@ -1856,6 +1859,8 @@ function updateMuseActionButtons() {
       button.disabled = !unlocked || !online || !ready || Boolean(state.busy.import);
     } else if (kind === 'retry') {
       button.disabled = !unlocked || !online || !ready || !isMuseBridgeReady() || Boolean(state.busy.bridge);
+    } else if (kind === 'copy') {
+      button.disabled = !unlocked || !ready || Boolean(state.busy.bridge);
     }
   });
   const wrapper = document.getElementById('museGateWrap');
@@ -2116,19 +2121,27 @@ function renderMuseMeasurement(result) {
   const host = document.getElementById('museMeasureResult');
   if (!host) return;
   const suggested = new Set(result.suggestedCookieNames || []);
+  const fresh = new Set(result.newCookieNames || []);
+  const changed = new Set(result.changedCookieNames || []);
   const cookies = Array.isArray(result.cookies) ? result.cookies : [];
   const rows = cookies.length
     ? cookies
-        .map(
-          (cookie) => `
+        .map((cookie) => {
+          const notes = [];
+          if (fresh.has(cookie.name)) notes.push('mới sau đăng nhập');
+          if (changed.has(cookie.name)) notes.push('giá trị đã đổi');
+          return `
         <label class="muse-cookie-row">
           <input type="checkbox" data-muse-cookie value="${esc(cookie.name)}" ${suggested.has(cookie.name) && !result.hasPasswordField ? 'checked' : ''} />
           <span class="mono-small">${esc(cookie.name)}</span>
-          <span class="small text-faint">${esc(cookie.domain || '')} · ${cookie.httpOnly ? 'httpOnly' : 'js'} · ${cookie.session ? 'session' : 'có hạn'}</span>
-        </label>`,
-        )
+          <span class="small text-faint">${esc(cookie.domain || '')} · ${cookie.httpOnly ? 'httpOnly' : 'js'} · ${cookie.session ? 'session' : 'có hạn'}${notes.length ? ` · ${notes.join(', ')}` : ''}</span>
+        </label>`;
+        })
         .join('')
     : '<div class="small text-amber">Không thấy cookie nào cho domain Muse. Hãy kiểm tra đã đăng nhập và đang đứng đúng domain Muse.</div>';
+  const baselineNote = result.baselineCaptured
+    ? `Đã có baseline đăng xuất lúc ${esc(fmtDateTime(result.baselineAt))}.`
+    : 'Chưa có baseline đăng xuất: tool không tự chọn cookie anonymous. Hãy mở cửa sổ đăng nhập trước khi đăng nhập, hoặc chọn cookie/selector thủ công.';
   host.innerHTML = `
     <div class="measure-head">
       <div>
@@ -2137,10 +2150,12 @@ function renderMuseMeasurement(result) {
       </div>
       ${result.hasPasswordField ? '<span class="badge badge-amber">Trang còn ô mật khẩu</span>' : '<span class="badge badge-green">Không thấy ô mật khẩu</span>'}
     </div>
-    <div class="small text-faint">Chọn đúng cookie sinh ra sau khi đăng nhập. Tool chỉ lưu tên cookie, không lưu giá trị.</div>
+    <div class="small ${result.baselineCaptured ? 'text-faint' : 'text-amber'}">${baselineNote}</div>
+    <div class="small text-faint">Chọn đúng cookie sinh ra sau khi đăng nhập. Tool chỉ lưu tên cookie, không lưu giá trị. Cookie “mới sau đăng nhập” an toàn hơn cookie anonymous.</div>
     <div class="muse-cookie-list">${rows}</div>
     <div class="btn-row">
-      <button class="btn btn-sm btn-primary" type="button" data-action="apply-muse-measurement">Dùng cookie đã chọn &amp; lưu</button>
+      ${result.suggestedUrlContains ? `<button class="btn btn-sm" type="button" data-action="use-muse-url" data-url="${esc(result.suggestedUrlContains)}">Dùng URL đăng nhập ${esc(result.suggestedUrlContains)}</button>` : ''}
+      <button class="btn btn-sm btn-primary" type="button" data-action="apply-muse-measurement">Dùng tín hiệu đã chọn &amp; lưu</button>
     </div>`;
 }
 
@@ -2164,12 +2179,26 @@ async function measureMuseSessionUi(button) {
   }
 }
 
+function useMuseUrlSignal(button) {
+  const form = button?.closest('form[data-form="muse-config"]');
+  const url = button?.dataset?.url || '';
+  if (!form || !url) return;
+  const input = form.querySelector('[name="logged_in_url_contains"]');
+  if (input) {
+    const values = commaList(input.value);
+    if (!values.includes(url)) values.push(url);
+    input.value = values.join(', ');
+  }
+  showToast(`Đã thêm tín hiệu URL "${url}". Bấm “Dùng tín hiệu đã chọn & lưu” để lưu.`, 'ok', 4500);
+}
+
 async function applyMuseMeasurement(button) {
   const form = button?.closest('form[data-form="muse-config"]');
   if (!form) return;
   const checked = [...document.querySelectorAll('[data-muse-cookie]:checked')].map((input) => input.value);
-  if (!checked.length) {
-    showToast('Chọn ít nhất một cookie đăng nhập. Nếu không thấy cookie, hãy đăng nhập lại trong cửa sổ Muse.', 'warn', 5500);
+  const urlSignals = commaList(form.querySelector('[name="logged_in_url_contains"]')?.value || '');
+  if (!checked.length && !urlSignals.length) {
+    showToast('Chọn ít nhất một cookie hoặc dùng tín hiệu URL đăng nhập. Nếu không thấy, hãy đăng nhập lại trong cửa sổ Muse.', 'warn', 6000);
     return;
   }
   const cookieInput = form.querySelector('[name="cookie_names"]');
@@ -2869,6 +2898,22 @@ async function sendToMuse(errors = []) {
     setBusy('bridge', false);
     renderWorkflow();
     showToast(error.message, 'error', 8000);
+  }
+}
+
+async function copyMusePrompt() {
+  if (!inputReady()) {
+    showToast('Input chưa sẵn sàng.', 'warn');
+    return;
+  }
+  try {
+    const errors = (state.planErrors || [])
+      .map((error) => `${error.code || 'PLAN_ERROR'} ${error.path || ''}: ${error.message || ''}`.trim())
+      .filter(Boolean);
+    const data = await api('/api/muse/prompt', { method: 'POST', json: { input: state.planInput, errors } });
+    await copyText(data.prompt, 'Đã sao chép prompt gửi Muse. Dán sang Muse rồi dán JSON trả về.');
+  } catch (error) {
+    showToast(error.message, 'error', 6500);
   }
 }
 
@@ -3624,6 +3669,11 @@ async function onDocumentClick(event) {
     await resendErrorsToMuse();
     return;
   }
+  if (action === 'copy-muse-prompt') {
+    event.preventDefault();
+    await copyMusePrompt();
+    return;
+  }
   if (action === 'import-sample') {
     event.preventDefault();
     await importSample(false);
@@ -3657,6 +3707,11 @@ async function onDocumentClick(event) {
   if (action === 'measure-muse-session') {
     event.preventDefault();
     await measureMuseSessionUi(actionEl);
+    return;
+  }
+  if (action === 'use-muse-url') {
+    event.preventDefault();
+    useMuseUrlSignal(actionEl);
     return;
   }
   if (action === 'apply-muse-measurement') {

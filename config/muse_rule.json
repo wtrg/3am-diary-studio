@@ -1,9 +1,9 @@
 {
-  "_note": "SLOT CẤU HÌNH MUSE. Phase này chưa viết rule chi tiết. Điền muse.url + login check + bridge selector khi có thông tin tài khoản Muse bàn giao. Không đặt mật khẩu trong file này.",
+  "_note": "MUSE URL THẬT (Meta AI). Đăng nhập bằng Cấu hình Muse → Lưu & mở cửa sổ đăng nhập → Đo phiên hiện tại. Không đặt mật khẩu trong file này.",
   "version": 1,
   "muse": {
     "name": "Muse",
-    "url": "",
+    "url": "https://muse.ai/",
     "login": {
       "logged_in_url_contains": [],
       "logged_out_url_contains": [],

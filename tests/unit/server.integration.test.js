@@ -293,6 +293,13 @@ test('full API flow: gate, strict validation, manual edit, queue, retry, export'
   assert.match(h.fakeMuse.lastPrompt, /byte-for-byte/);
   assert.match(h.fakeMuse.lastPrompt, /UNKNOWN_MEME_ID: meme_khong_ton_tai/);
   assert.match(bridge.data.prompt, /UNKNOWN_MEME_ID/);
+
+  const promptRoute = await h.request('/api/muse/prompt', {
+    method: 'POST',
+    json: { input: input.data.input, errors: ['TEXT_MISMATCH: c1'] },
+  });
+  assert.equal(promptRoute.status, 200);
+  assert.match(promptRoute.data.prompt, /TEXT_MISMATCH: c1/);
 });
 
 test('scrape failures are surfaced without overwriting the current post', async (t) => {
