@@ -58,7 +58,7 @@ function createFakeMuse() {
 }
 
 function createFakeQueue(dataDir, library) {
-  const control = { fail: false, renders: [] };
+  const control = { fail: false, renders: [], voiceTracks: [] };
   const adapter = {
     id: 'test-adapter',
     label: 'Test adapter',
@@ -66,6 +66,7 @@ function createFakeQueue(dataDir, library) {
     note: 'test',
     async render(ctx) {
       control.renders.push(JSON.parse(JSON.stringify(ctx.plan)));
+      control.voiceTracks.push(ctx.voiceTrackPath || '');
       ctx.onProgress('Đang test', 50);
       if (control.fail) throw new Error('Lỗi test có chủ đích');
       fs.writeFileSync(ctx.outputPath, Buffer.alloc(4096, 7));
@@ -202,11 +203,36 @@ test('full API flow: gate, strict validation, manual edit, queue, retry, export'
   assert.equal(demo.data.workspace.post.author, 'meo.va.cho');
   assert.equal(demo.data.workspace.comments.length, 5);
 
+  await h.library.importDemoItem({
+    id: 'voice_test_1',
+    kind: 'voice',
+    name: 'Giọng đọc test',
+    tags: ['voice'],
+    sourceFile: path.join(ROOT, 'demo', 'assets', 'audio', 'sfx_pop.wav'),
+    mime: 'audio/wav',
+    mediaType: 'audio',
+    duration: 1,
+  });
+  const voiceSettings = await h.request('/api/workspace/settings', {
+    method: 'PUT',
+    json: {
+      voice: 'Giọng nữ kể chuyện',
+      voice_track_id: 'voice_test_1',
+      background_video_id: 'bg_demo_cozy',
+      watermark: '@3am.test',
+      target_duration: 60,
+    },
+  });
+  assert.equal(voiceSettings.status, 200);
+  assert.equal(voiceSettings.data.workspace.settings.voice_track_id, 'voice_test_1');
+
   const input = await h.request('/api/plan/input');
   assert.equal(input.status, 200);
   assert.equal(input.data.ready, true);
   assert.equal(input.data.input.comments.length, 5);
   assert.ok(input.data.input.library.some((item) => item.background_video_id === 'bg_demo_cozy'));
+  assert.ok(input.data.input.library.some((item) => item.voice_id === 'voice_test_1'));
+  assert.equal(input.data.input.settings.voice_track_id, 'voice_test_1');
   for (const comment of input.data.input.comments) {
     const source = demo.data.workspace.comments.find((entry) => entry.comment_id === comment.comment_id);
     assert.equal(comment.text, source.text);
@@ -258,6 +284,11 @@ test('full API flow: gate, strict validation, manual edit, queue, retry, export'
   assert.ok(h.control.renders.length >= 1);
   assert.equal(h.control.renders[0].title, 'Tiêu đề người dùng sửa tay');
   assert.equal(h.control.renders[0].segments[0].meme_id, 'meme_demo_cat_glass');
+  assert.ok(h.control.voiceTracks[0], 'job receives a voice track path');
+  assert.match(h.control.voiceTracks[0], /voice_test_1\.wav$/i);
+
+  const deleteVoice = await h.request('/api/library/voice_test_1', { method: 'DELETE' });
+  assert.equal(deleteVoice.status, 409, 'a voice track referenced by settings cannot be deleted');
 
   const range = await h.request(`/media/outputs/${job.output_file}`, {
     headers: { Range: 'bytes=0-99' },

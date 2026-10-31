@@ -200,6 +200,12 @@ async function render(ctx) {
 
   const memes = [];
   let inputIndex = 2;
+  if (ctx.voiceTrackPath && fs.existsSync(ctx.voiceTrackPath)) {
+    inputs.push('-i', ctx.voiceTrackPath);
+    filterParts.push(`[${inputIndex}:a]atrim=0:${targetDuration},volume=1.0[voice]`);
+    audioLabels.push('[voice]');
+    inputIndex += 1;
+  }
   for (let index = 0; index < segments.length; index += 1) {
     const segment = segments[index];
     const asset = assetById.get(segment.meme_id);

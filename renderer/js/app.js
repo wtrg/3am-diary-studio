@@ -10,6 +10,7 @@ const KINDS = {
   music: { label: 'Nhạc nền', plural: 'Nhạc nền', accept: '.mp3,.wav,.m4a,.aac,.ogg,.flac' },
   sfx: { label: 'SFX', plural: 'SFX', accept: '.mp3,.wav,.m4a,.aac,.ogg' },
   background: { label: 'Video nền', plural: 'Video nền', accept: '.mp4,.mov,.webm,.m4v' },
+  voice: { label: 'Giọng đọc', plural: 'Giọng đọc', accept: '.mp3,.wav,.m4a,.aac,.ogg,.flac' },
 };
 
 const JOB_FILTERS = [
@@ -70,7 +71,7 @@ const state = {
   jobSignature: '',
   jobError: '',
   library: [],
-  libraryStats: { meme: 0, music: 0, sfx: 0, background: 0 },
+  libraryStats: { meme: 0, music: 0, sfx: 0, background: 0, voice: 0 },
   libraryFilter: { kind: 'all', q: '', tag: '' },
   threadsSession: { loggedIn: false, checked: false },
   threadsMode: 'auto',
@@ -317,7 +318,7 @@ function libraryById(id) {
 }
 
 function libraryStatsFromItems() {
-  const stats = { meme: 0, music: 0, sfx: 0, background: 0 };
+  const stats = { meme: 0, music: 0, sfx: 0, background: 0, voice: 0 };
   for (const item of state.library) if (stats[item.kind] !== undefined) stats[item.kind] += 1;
   return stats;
 }
@@ -447,7 +448,7 @@ function planStateTone() {
 }
 
 function planInputCounts() {
-  const counts = { comments: 0, memes: 0, music: 0, sfx: 0, backgrounds: 0 };
+  const counts = { comments: 0, memes: 0, music: 0, sfx: 0, backgrounds: 0, voices: 0 };
   if (!state.planInput) return counts;
   counts.comments = Array.isArray(state.planInput.comments) ? state.planInput.comments.length : 0;
   for (const item of state.planInput.library || []) {
@@ -455,6 +456,7 @@ function planInputCounts() {
     else if (item.music_id) counts.music += 1;
     else if (item.sfx_id) counts.sfx += 1;
     else if (item.background_video_id) counts.backgrounds += 1;
+    else if (item.voice_id) counts.voices += 1;
   }
   return counts;
 }
@@ -731,6 +733,7 @@ function gateCardHtml() {
 function settingsCardHtml() {
   const settings = state.workspace?.settings || {};
   const backgrounds = libraryOf('background');
+  const voiceTracks = libraryOf('voice');
   const voice = settings.voice || '';
   return `
     <section class="panel panel-soft">
@@ -743,7 +746,20 @@ function settingsCardHtml() {
             <label for="settingsVoice">Giọng đọc</label>
             <input class="input" id="settingsVoice" list="voiceSuggestions" placeholder="Ví dụ: Giọng nữ kể chuyện (ấm, chậm)" value="${esc(voice)}" />
             <datalist id="voiceSuggestions">${VOICE_SUGGESTIONS.map((v) => `<option value="${esc(v)}"></option>`).join('')}</datalist>
-            <span class="hint">Chuỗi cài đặt giọng; renderer/TTS cuối sẽ dùng giá trị này.</span>
+            <span class="hint">Mô tả giọng đọc do bạn/Muse chọn.</span>
+          </div>
+          <div class="field span-2">
+            <label for="settingsVoiceTrack">File giọng đọc (tùy chọn)</label>
+            <select class="select" id="settingsVoiceTrack">
+              <option value="">— Không dùng file giọng —</option>
+              ${voiceTracks
+                .map(
+                  (item) =>
+                    `<option value="${esc(item.id)}" ${settings.voice_track_id === item.id ? 'selected' : ''}>${esc(item.name)} · ${esc(fmtDuration(item.duration, item.mediaType))}</option>`,
+                )
+                .join('')}
+            </select>
+            <span class="hint">Upload audio ở Bước 2 với loại “Giọng đọc”. Renderer trộn file này trên nhạc nền; tool không tự sinh TTS.</span>
           </div>
           <div class="field span-2">
             <label for="settingsBackground">Video nền gameplay</label>
@@ -797,6 +813,7 @@ function inputPanelHtml() {
           <span>Nhạc <strong>${counts.music}</strong></span>
           <span>SFX <strong>${counts.sfx}</strong></span>
           <span>Nền <strong>${counts.backgrounds}</strong></span>
+          <span>Giọng <strong>${counts.voices}</strong></span>
         </div>
         ${
           json
@@ -813,7 +830,7 @@ function inputPanelHtml() {
             : `<div class="empty" style="padding:18px"><span>Chưa tạo được input. Hoàn tất bài, bình luận và kho file trước.</span></div>`
         }
         <div class="contract-note">
-          Hợp đồng: <code>post · comments[{comment_id, author, time, text, likes}] · library[{meme_id…} / {music_id…} / {sfx_id…}] · settings{voice, background_video_id, watermark, target_duration}</code>.
+          Hợp đồng: <code>post · comments[{comment_id, author, time, text, likes}] · library[{meme_id…} / {music_id…} / {sfx_id…} / {voice_id…}] · settings{voice, voice_track_id, background_video_id, watermark, target_duration}</code>.
           Frontend chỉ truyền ID; không tự quyết nội dung.
         </div>
       </div>
@@ -1360,7 +1377,7 @@ function step1Html() {
           <button class="btn" data-action="go-step" data-step="2" ${!post || selected.length === 0 ? 'disabled' : ''}>Tiếp tục: Chọn kho file</button>
         </div>
       </div>
-      ${stats.meme + stats.music + stats.sfx + stats.background === 0 ? `<div class="contract-note">Kho file đang trống — bạn có thể nạp demo hoặc thêm file ở Bước 2.</div>` : ''}
+      ${stats.meme + stats.music + stats.sfx + stats.background + stats.voice === 0 ? `<div class="contract-note">Kho file đang trống — bạn có thể nạp demo hoặc thêm file ở Bước 2.</div>` : ''}
     </div>`;
 }
 
@@ -1424,7 +1441,7 @@ function postCardHtml(post) {
 
 function step2Html() {
   const stats = libraryStatsFromItems();
-  const tabs = [['all', 'Tất cả'], ['meme', 'Meme'], ['music', 'Nhạc nền'], ['sfx', 'SFX'], ['background', 'Video nền']];
+  const tabs = [['all', 'Tất cả'], ['meme', 'Meme'], ['music', 'Nhạc nền'], ['sfx', 'SFX'], ['background', 'Video nền'], ['voice', 'Giọng đọc']];
   const tags = tagFrequency();
   const canContinue = allKindsPresent();
   const missing = [];
@@ -2864,6 +2881,7 @@ async function moveComment(id, direction) {
 
 async function saveSettings() {
   const voice = document.getElementById('settingsVoice')?.value || '';
+  const voiceTrack = document.getElementById('settingsVoiceTrack')?.value || '';
   const background = document.getElementById('settingsBackground')?.value || '';
   const watermark = document.getElementById('settingsWatermark')?.value || '';
   const target = Number(document.getElementById('settingsDuration')?.value || 60);
@@ -2871,7 +2889,7 @@ async function saveSettings() {
     setBusy('settings', true);
     const data = await api('/api/workspace/settings', {
       method: 'PUT',
-      json: { voice, background_video_id: background, watermark, target_duration: target },
+      json: { voice, voice_track_id: voiceTrack, background_video_id: background, watermark, target_duration: target },
     });
     if (data.workspace) state.workspace = data.workspace;
     state.approved = Boolean(state.workspace?.approved_plan);

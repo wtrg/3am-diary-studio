@@ -57,6 +57,32 @@ test('buildMuseInput follows the contract and preserves comment text', () => {
   assert.ok(input.library.some((item) => item.background_video_id === 'bg_demo_cozy'));
 });
 
+test('voice track is optional but must exist in the library when selected', () => {
+  const voiceLibrary = [
+    ...demoLibrary(),
+    { id: 'voice_demo', kind: 'voice', name: 'Giọng đọc', tags: ['voice'], duration: 30 },
+  ];
+  const input = buildMuseInput({
+    post: demoPost.post,
+    comments: demoPost.comments,
+    library: voiceLibrary,
+    settings: {
+      voice: 'Giọng nữ',
+      voice_track_id: 'voice_demo',
+      background_video_id: 'bg_demo_cozy',
+      watermark: '@3am.diary.demo',
+      target_duration: 60,
+    },
+  });
+  assert.equal(input.settings.voice_track_id, 'voice_demo');
+  assert.ok(input.library.some((item) => item.voice_id === 'voice_demo'));
+  assert.deepEqual(preflightInput(input, voiceLibrary), []);
+  assert.equal(validatePlan(samplePlan, input).ok, true);
+
+  const missing = preflightInput(input, demoLibrary());
+  assert.ok(missing.some((error) => error.code === 'VOICE_TRACK_NOT_FOUND'));
+});
+
 test('preflight accepts the demo and reports missing pieces', () => {
   const input = demoInput();
   assert.deepEqual(preflightInput(input, demoLibrary()), []);

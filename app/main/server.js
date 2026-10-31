@@ -404,6 +404,7 @@ class LocalServer {
       for (const plan of [this.workspace.state.draft_plan, this.workspace.state.approved_plan]) {
         for (const ref of this.library.findReferences(plan)) refs.add(ref.id);
       }
+      if (this.workspace.state.settings?.voice_track_id) refs.add(this.workspace.state.settings.voice_track_id);
       for (const id of this.jobs.referencedLibraryIds()) refs.add(id);
       if (refs.has(item.id)) {
         throw httpError(
@@ -650,6 +651,7 @@ class LocalServer {
         throw httpError(422, 'PLAN_STALE', 'Kế hoạch không còn hợp lệ với dữ liệu hiện tại. Không render.', check.errors);
       }
       const ids = new Set([state.settings.background_video_id]);
+      if (state.settings.voice_track_id) ids.add(state.settings.voice_track_id);
       ids.add(check.plan.music_id);
       for (const segment of check.plan.segments) {
         ids.add(segment.meme_id);

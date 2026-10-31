@@ -43,6 +43,7 @@ function buildMuseInput({ post, comments, library, settings }) {
   const music = [];
   const sfx = [];
   const backgrounds = [];
+  const voices = [];
   for (const item of library) {
     if (item.kind === 'meme') {
       memes.push({ meme_id: item.id, tags: item.tags.slice(), duration: item.duration });
@@ -52,6 +53,8 @@ function buildMuseInput({ post, comments, library, settings }) {
       sfx.push({ sfx_id: item.id, use: item.name });
     } else if (item.kind === 'background') {
       backgrounds.push({ background_video_id: item.id, tags: item.tags.slice(), duration: item.duration });
+    } else if (item.kind === 'voice') {
+      voices.push({ voice_id: item.id, tags: item.tags.slice(), duration: item.duration });
     }
   }
 
@@ -67,9 +70,10 @@ function buildMuseInput({ post, comments, library, settings }) {
       shares_count: Number(post.shares_count) || 0,
     },
     comments: comments.map(mapComment),
-    library: [...memes, ...music, ...sfx, ...backgrounds],
+    library: [...memes, ...music, ...sfx, ...backgrounds, ...voices],
     settings: {
       voice: settings.voice,
+      ...(settings.voice_track_id ? { voice_track_id: settings.voice_track_id } : {}),
       background_video_id: settings.background_video_id,
       watermark: settings.watermark,
       target_duration: settings.target_duration,
@@ -96,6 +100,9 @@ function preflightInput(input, library) {
   }
   if (!input.settings.voice || typeof input.settings.voice !== 'string') {
     errors.push({ code: 'VOICE_REQUIRED', message: 'Chưa chọn giọng đọc.' });
+  }
+  if (input.settings.voice_track_id && !library.some((item) => item.kind === 'voice' && item.id === input.settings.voice_track_id)) {
+    errors.push({ code: 'VOICE_TRACK_NOT_FOUND', message: 'File giọng đọc đã chọn không có trong kho.' });
   }
   if (!input.settings.watermark || typeof input.settings.watermark !== 'string') {
     errors.push({ code: 'WATERMARK_REQUIRED', message: 'Chưa nhập watermark kênh.' });
@@ -157,9 +164,10 @@ function validatePlan(rawPlan, input) {
   const musicIds = new Set();
   const sfxIds = new Set();
   const backgroundIds = new Set();
+  const voiceIds = new Set();
   const seenLibraryIds = new Set();
   for (const item of input.library || []) {
-    const id = item.meme_id || item.music_id || item.sfx_id || item.background_video_id;
+    const id = item.meme_id || item.music_id || item.sfx_id || item.background_video_id || item.voice_id;
     if (!id) continue;
     if (seenLibraryIds.has(id)) add('$.library', 'DUPLICATE_LIBRARY_ID', `ID kho bị trùng: ${id}`);
     seenLibraryIds.add(id);
@@ -167,6 +175,7 @@ function validatePlan(rawPlan, input) {
     if (item.music_id) musicIds.add(item.music_id);
     if (item.sfx_id) sfxIds.add(item.sfx_id);
     if (item.background_video_id) backgroundIds.add(item.background_video_id);
+    if (item.voice_id) voiceIds.add(item.voice_id);
   }
 
   if (typeof rawPlan.title !== 'string' || !rawPlan.title.trim()) {
@@ -233,6 +242,9 @@ function validatePlan(rawPlan, input) {
   }
   if (!input.settings || !backgroundIds.has(input.settings.background_video_id)) {
     add('$.settings.background_video_id', 'UNKNOWN_BACKGROUND_ID', 'Video nền không có trong kho.');
+  }
+  if (input.settings?.voice_track_id && !voiceIds.has(input.settings.voice_track_id)) {
+    add('$.settings.voice_track_id', 'UNKNOWN_VOICE_TRACK_ID', 'File giọng đọc không có trong kho.');
   }
 
   if (errors.length) return { ok: false, errors };

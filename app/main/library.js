@@ -12,6 +12,7 @@ const KIND_PREFIX = {
   music: 'music',
   sfx: 'sfx',
   background: 'bg',
+  voice: 'voice',
 };
 
 const KIND_RULES = {
@@ -34,6 +35,11 @@ const KIND_RULES = {
     exts: ['.mp4', '.mov', '.webm', '.m4v'],
     maxBytes: 512 * 1024 * 1024,
     media: 'video',
+  },
+  voice: {
+    exts: ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'],
+    maxBytes: 80 * 1024 * 1024,
+    media: 'audio',
   },
 };
 
@@ -261,7 +267,7 @@ class Library {
   }
 
   stats() {
-    const counts = { meme: 0, music: 0, sfx: 0, background: 0 };
+    const counts = { meme: 0, music: 0, sfx: 0, background: 0, voice: 0 };
     for (const item of this.items) if (counts[item.kind] !== undefined) counts[item.kind] += 1;
     return counts;
   }

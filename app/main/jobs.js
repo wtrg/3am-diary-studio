@@ -192,6 +192,12 @@ class JobQueue {
         }
         assets.push({ ...asset, file: current.file, absolutePath: this.library.mediaPath(current) });
       }
+      const voiceAsset = job.settings?.voice_track_id
+        ? assets.find((asset) => asset.id === job.settings.voice_track_id)
+        : null;
+      if (job.settings?.voice_track_id && !voiceAsset) {
+        throw new Error('File giọng đọc đã chọn không còn trong job/kho. Kế hoạch được giữ nguyên.');
+      }
 
       const result = await adapter.render({
         job,
@@ -203,6 +209,7 @@ class JobQueue {
         outputPath,
         tempDir,
         screensDir: path.join(this.dataDir, 'screens', job.id),
+        voiceTrackPath: voiceAsset?.absolutePath || null,
         onProgress,
         appendLog: (line) => this._appendLog(job, line),
         signal: { aborted: false },

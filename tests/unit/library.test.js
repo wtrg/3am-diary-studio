@@ -73,6 +73,24 @@ test('library rejects invalid kinds and extensions', async (t) => {
   );
 });
 
+test('library accepts a voice track with an audio extension', async (t) => {
+  const dir = tempDir();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const library = new Library(dir);
+  const voice = await library.importDemoItem({
+    id: 'voice_test_1',
+    kind: 'voice',
+    name: 'Giọng đọc test',
+    tags: ['voice'],
+    sourceFile: path.join(__dirname, '..', '..', 'demo', 'assets', 'audio', 'sfx_pop.wav'),
+    mime: 'audio/wav',
+    mediaType: 'audio',
+    duration: 1,
+  });
+  assert.equal(voice.kind, 'voice');
+  assert.equal(library.stats().voice, 1);
+});
+
 test('demo import is idempotent and keeps stable ids', async (t) => {
   const dir = tempDir();
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
