@@ -44,11 +44,14 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 3am-diary-studio
 ```
 
-Hoặc icon **3AM Diary Studio** trên Desktop / Start Menu. Cài lại shortcut bằng:
+Hoặc icon **3AM Diary Studio** trên Desktop / Start Menu. Để mở thẳng cửa sổ đăng nhập Muse thật, dùng shortcut **3AM Muse Login** (hoặc `npm run muse:login`). Cài lại shortcut bằng:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\install-launch.ps1
+powershell -ExecutionPolicy Bypass -File scripts\install-muse-login.ps1
 ```
+
+Shortcut **3AM Muse Login** mở app + cửa sổ đăng nhập Muse thật; người dùng tự đăng nhập.
 
 App tự mở cửa sổ; nút **Tắt ứng dụng** ở sidebar đóng app và server local. Ba đường mở (lệnh, Desktop, Start Menu) đã được test mở cửa sổ thật.
 

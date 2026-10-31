@@ -37,15 +37,24 @@ const { discoverThreads } = require('./threads/discoverThreads');
 
 let mainWindow = null;
 let server = null;
+let museLoginService = null;
+const openMuseLoginOnReady = process.argv.includes('--muse-login');
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock && !process.env.E2E_TEST) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
+    }
+    if (Array.isArray(argv) && argv.includes('--muse-login') && museLoginService) {
+      try {
+        museLoginService.open();
+      } catch (error) {
+        console.error('[muse-login]', error.message);
+      }
     }
   });
 }
@@ -57,6 +66,7 @@ app.whenReady().then(async () => {
     const museRule = new MuseRuleSlot(MUSE_RULE_FILE);
     const museGate = new MuseGate(museRule);
     const museLogin = new MuseLoginService({ ruleSlot: museRule, getParentWindow: () => mainWindow });
+    museLoginService = museLogin;
     const library = new Library(DATA_DIR);
     const workspace = new Workspace(DATA_DIR);
     const jobs = new JobQueue({ dataDir: DATA_DIR, library });
@@ -148,6 +158,13 @@ app.whenReady().then(async () => {
     mainWindow.once('ready-to-show', () => {
       mainWindow.show();
       if (process.env.DEBUG_DEVTOOLS) mainWindow.webContents.openDevTools({ mode: 'detach' });
+      if (openMuseLoginOnReady) {
+        try {
+          museLogin.open();
+        } catch (error) {
+          console.error('[muse-login]', error.message);
+        }
+      }
     });
     mainWindow.on('closed', () => {
       mainWindow = null;

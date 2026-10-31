@@ -10,7 +10,8 @@
     "test:e2e": "node tests/e2e/run.mjs",
     "test:live-production": "node scripts/live-production-e2e.mjs",
     "assets:demo": "node scripts/build-demo-assets.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "muse:login": "electron . --muse-login"
   },
   "devDependencies": {
     "electron": "34.5.8"
