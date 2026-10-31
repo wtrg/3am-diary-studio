@@ -112,10 +112,12 @@ Phần chưa hoàn tất đúng phạm vi phase này: rule Muse chi tiết, kế
 | Prompt gửi Muse có contract + rule + lỗi | PASS | Unit test `buildPrompt`; E2E bridge trả plan hợp lệ |
 | Chụp post/comment thật, cắt đúng khung | PASS (live) | `.sample/live-prod-screens/post.png` + 3 comment PNG từ job production |
 | Không còn ảnh bị tối bởi login backdrop | PASS | Đã ẩn backdrop `z-index:auto`; frame thẻ trắng trong `.sample/live-frames/` |
-| Thiếu ảnh chụp → dừng job, không vẽ thẻ giả | PASS (code path) | `SCREENSHOT_MATCH_FAILED`; chưa có test tự động riêng |
+| Thiếu ảnh chụp → dừng job, không vẽ thẻ giả | PASS | `productionGuards.test.js`: thiếu post/comment đều throw `SCREENSHOT_MATCH_FAILED`; renderer dùng cùng guard |
+| Rule Muse sửa được trong app, tự tắt plan mẫu | PASS | Ô rule trong modal; `saveConfig` tăng version, `samplePlanEnabled=false`; unit test |
+| Gửi lỗi validate lại cho Muse sửa | PASS | Nút “Gửi lỗi cho Muse sửa”; server ghép lỗi vào prompt; unit/integration test assert prompt chứa lỗi |
 | Production renderer qua hàng đợi | PASS (live) | `npm run test:live-production`: job done, 4 screenshot, 60s, 576×1024@30, ~3.2 MB |
 | GIF/clip meme + SFX + nền + nhạc + watermark | PASS | Frame production: GIF/ảnh meme, watermark `@3am.diary.demo`, mark 3AM; audio trong MP4 |
 | Renderer production thiếu file → giữ plan | PASS | Renderer throw, JobQueue giữ plan (integration test cho job retry; nhánh screenshot chưa tự động) |
-| Unit + E2E toàn repo | PASS | 35/35 unit; E2E PASS gồm cấu hình/login đo phiên/bridge/render |
+| Unit + E2E toàn repo | PASS | 39/39 unit; E2E PASS gồm cấu hình/login đo phiên/bridge/render |
 | Voice/TTS tiếng Việt tự sinh | **CHƯA** | Renderer chỉ dùng `voiceTrackPath` nếu có file giọng |
 | Muse thật (URL/tài khoản nhà cung cấp) | **CHƯA TEST** | Chỉ test local Muse portal; cần URL/tài khoản thật để chốt selector/cookie |

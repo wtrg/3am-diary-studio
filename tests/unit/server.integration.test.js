@@ -42,7 +42,8 @@ function createFakeMuse() {
     async verify() {
       return { ...fake.status(), ok: fake.loggedIn };
     },
-    async sendPrompt() {
+    async sendPrompt({ text }) {
+      fake.lastPrompt = text;
       if (!fake.loggedIn) {
         const error = new Error(GATE);
         error.statusCode = 403;
@@ -89,6 +90,8 @@ function createHarness(t) {
     samplePlanEnabled: () => true,
     reload: () => ({}),
     publicInfo: () => ({ samplePlanEnabled: true }),
+    buildPrompt: (input, errors = []) =>
+      `Muse, não chính\nGiữ text byte-for-byte.\n${errors.join('\n')}\n${JSON.stringify(input, null, 2)}`,
   };
   const server = new LocalServer({
     rootDir: root,
@@ -280,6 +283,16 @@ test('full API flow: gate, strict validation, manual edit, queue, retry, export'
   });
   assert.equal(unlockedImport.status, 200);
   assert.equal(unlockedImport.data.workspace.plan_meta.source, 'muse');
+
+  const bridge = await h.request('/api/muse/bridge/send', {
+    method: 'POST',
+    json: { input: input.data.input, errors: ['UNKNOWN_MEME_ID: meme_khong_ton_tai'] },
+  });
+  assert.equal(bridge.status, 200);
+  assert.match(h.fakeMuse.lastPrompt, /Muse, não chính/);
+  assert.match(h.fakeMuse.lastPrompt, /byte-for-byte/);
+  assert.match(h.fakeMuse.lastPrompt, /UNKNOWN_MEME_ID: meme_khong_ton_tai/);
+  assert.match(bridge.data.prompt, /UNKNOWN_MEME_ID/);
 });
 
 test('scrape failures are surfaced without overwriting the current post', async (t) => {

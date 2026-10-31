@@ -181,6 +181,17 @@ class MuseRuleSlot {
       }
     }
 
+    if (input.rule && typeof input.rule === 'object') {
+      if ('prompt' in input.rule) {
+        const prompt = stringField(input.rule.prompt).slice(0, 20000);
+        if (prompt !== next.rule.prompt) {
+          const hadPrompt = Boolean(next.rule.prompt);
+          next.rule.prompt = prompt;
+          next.rule.version = prompt ? (hadPrompt ? (Number(next.rule.version) || 0) + 1 : 1) : 0;
+        }
+      }
+    }
+
     if (input.bridge && typeof input.bridge === 'object') {
       const bridge = input.bridge;
       if ('mode' in bridge) {
@@ -228,6 +239,10 @@ class MuseRuleSlot {
         sendSelector: this.config.muse.bridge.send_selector || '',
         responseSelector: this.config.muse.bridge.response_selector || '',
         waitTimeoutMs: Number(this.config.muse.bridge.wait_timeout_ms) || 180000,
+      },
+      rule: {
+        prompt: this.config.rule.prompt || '',
+        version: Number(this.config.rule.version) || 0,
       },
       ruleAttached: Boolean(this.config.rule.prompt && this.config.rule.prompt.trim()),
       ruleVersion: Number(this.config.rule.version) || 0,

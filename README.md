@@ -20,7 +20,8 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 | Chụp ảnh post/comment thật, cắt khung | Đã xong, live; thiếu ảnh thì dừng job |
 | Renderer production (thẻ trắng, GIF/clip, SFX, watermark) | Đã xong; chưa tự TTS |
 | Prompt gửi Muse (contract + rule slot + lỗi cần sửa) | Đã xong |
-| Rule chi tiết cho Muse | **Chưa** — vẫn là slot; prompt tự sinh contract |
+| Rule chi tiết cho Muse | Slot + ô nhập trong app; nội dung rule do Muse cung cấp (đang trống) |
+| Gửi lỗi validate lại cho Muse sửa | Đã xong |
 | Tự đăng TikTok/Facebook | **Không làm** |
 
 ## 2. Chạy local
@@ -128,8 +129,9 @@ Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không
 - Nút **Tải lại cấu hình** trong Bước 3 đọc lại file mà không cần tắt app.
 - Nếu điền `input_selector`, `send_selector`, `response_selector`, nút **Gửi input & nhận kế hoạch từ Muse** dùng bridge tự động. Không thì dùng copy JSON → Muse → dán JSON về.
 - **Prompt gửi Muse** do `MuseRuleSlot.buildPrompt` ghép: contract JSON, ràng buộc text nguyên văn/ID hợp lệ, rule bổ sung (nếu có) và danh sách lỗi lần trước (nếu có). Nội dung chọn bình luận/meme/nhạc vẫn do Muse quyết; frontend không tự quyết.
-- **`rule.prompt` đang để trống có chủ ý** — slot cho rule chi tiết. Prompt contract vẫn hoạt động khi slot trống. Có thể điền rule thật ở phase sau.
+- **`rule.prompt` sửa được ngay trong “Cấu hình Muse”** (ô “Rule / prompt bổ sung”) hoặc trong file. Rule được chèn vào đầu prompt gửi Muse; phiên bản tự tăng khi nội dung đổi. Mặc định đang trống.
 - **Plan mẫu test tự tắt khi `rule.prompt` có nội dung.** Đây là chốt an toàn: khi rule Muse thật đã gắn, không còn đường tạo kế hoạch test không qua Muse. Có thể tắt sớm hơn bằng `test_options.enable_sample_plan: false`.
+- Khi Muse trả kế hoạch sai, UI có nút **“Gửi lỗi cho Muse sửa”**: gửi lại input + danh sách lỗi validate để Muse trả JSON mới; tool vẫn không tự sửa.
 - Trang login Muse có thể mở popup (OAuth). Main process mở popup cùng partition; không lưu mật khẩu.
 - Đăng nhập/đo phiên dùng chung partition `persist:muse`; cấu hình chỉ lưu **tên** cookie/selector, không lưu giá trị cookie hay mật khẩu.
 
@@ -228,7 +230,7 @@ node_modules/electron/dist/electron.exe scripts/live-threads-discover.js "mèo" 
 ## 8. Kiểm thử
 
 ```bash
-npm test                  # 35 unit + integration test: contract, library, parser, discovery, Muse config/prompt, gate, job retry, download
+npm test                  # 39 unit + integration test: contract, library, parser, discovery, Muse config/prompt, screenshot guard, gate, job retry, download
 npm run test:e2e          # Electron thật: cấu hình Muse trong UI → mở cửa sổ login → đo cookie → bridge → render MP4
 npm run test:live-production  # LIVE: Threads thật → job queue → chụp post/comment thật → production MP4
 ```
@@ -247,7 +249,7 @@ Test Muse portal (`tests/muse-portal/server.js` + `tests/fixtures/muse_rule.test
 - **Muse thật:** đã có UI cấu hình, cửa sổ đăng nhập riêng và đo cookie/selector; đã test end-to-end bằng **local Muse test portal**. Chưa có URL/tài khoản Muse thật để xác nhận selector/cookie của nhà cung cấp. Khi có, chỉ cần mở **Cấu hình Muse**, nhập URL, đăng nhập, đo phiên.
 - **Rule Muse chi tiết** vẫn là slot; prompt tự sinh contract + rule bổ sung, không tự chọn nội dung thay Muse.
 - **Threads:** live 2026-10-31, job production qua hàng đợi lấy 7 bình luận công khai, chọn 3, chụp **4 ảnh thật** (post + 3 comment), render 60s 576×1024@30fps ~3.1 MB; thẻ trắng đúng khung, GIF/ảnh meme, SFX, nền, nhạc, watermark. Video/ảnh bằng chứng nằm trong `.sample/` (không commit) và E2E trong `artifacts/` (không commit).
-- **Thiếu ảnh chụp** hoặc DOM Threads đổi cấu trúc → job báo `SCREENSHOT_MATCH_FAILED`, không vẽ thẻ giả, plan được giữ. Chưa có test tự động riêng cho nhánh thiếu ảnh; có thể thêm ở phase sau.
+- **Thiếu ảnh chụp** hoặc DOM Threads đổi cấu trúc → job báo `SCREENSHOT_MATCH_FAILED`, không vẽ thẻ giả, plan được giữ. Guard này có unit test riêng (`productionGuards.test.js`) cho thiếu ảnh post/comment.
 - **Voice/TTS tiếng Việt chưa tự sinh.** Renderer nhận `voiceTrackPath` nếu có file giọng; sample tham chiếu có voice nhưng tool chưa tạo voice.
 - **Giao diện thẻ** giữ theme sáng thật của Threads; nếu Threads trả dark theme, bật `THREADS_SCREENSHOT_LIGHT=1` để áp thẻ sáng (không đổi chữ/ảnh).
 - Discovery ẩn danh bị Threads giới hạn tự nhiên (không phải tool cố ý cắt): search logged-out có thể chỉ trả một phần và chặn “Log in for more”. Tool báo đúng số thực tế. Chế độ Tài khoản cần đăng nhập Threads.

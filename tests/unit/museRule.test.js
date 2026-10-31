@@ -82,6 +82,23 @@ test('saveConfig persists the Muse URL and login signals without touching the ru
   assert.equal(slot.publicInfo().bridge.inputSelector, '#input');
 });
 
+test('saveConfig stores the Muse rule prompt, bumps its version, and disables sample plans', (t) => {
+  const slot = tempRule(t, {
+    muse: { url: 'https://muse.example/', login: { cookie_names: ['sid'] }, bridge: {} },
+    rule: { prompt: '', version: 0 },
+    test_options: { enable_sample_plan: true },
+  });
+  assert.equal(slot.samplePlanEnabled(), true);
+  const saved = slot.saveConfig({ rule: { prompt: 'Ưu tiên GIF, hook 3 giờ sáng.' } });
+  assert.equal(saved.rule.prompt, 'Ưu tiên GIF, hook 3 giờ sáng.');
+  assert.equal(saved.rule.version, 1);
+  assert.equal(slot.publicInfo().rule.prompt, 'Ưu tiên GIF, hook 3 giờ sáng.');
+  assert.equal(slot.samplePlanEnabled(), false);
+  assert.match(slot.buildPrompt({ comments: [] }), /Ưu tiên GIF/);
+  const bumped = slot.saveConfig({ rule: { prompt: 'Rule mới.' } });
+  assert.equal(bumped.rule.version, 2);
+});
+
 test('saveConfig rejects non-http URLs and embedded credentials', (t) => {
   const slot = tempRule(t, { muse: { url: '', login: {}, bridge: {} }, rule: { prompt: '', version: 0 } });
   assert.throws(() => slot.saveConfig({ url: 'file:///etc/passwd' }), /http/i);

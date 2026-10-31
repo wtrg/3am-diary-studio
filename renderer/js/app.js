@@ -489,6 +489,15 @@ function planErrorsBlock() {
           Tool đã dừng. Không tự sửa ID/nội dung, không tự render.
         </div>
         ${items ? `<ul class="error-list">${items}</ul>` : ''}
+        ${
+          state.planErrors.length && isMuseUnlocked() && isMuseBridgeReady()
+            ? `<div class="btn-row" style="margin-top:8px">
+                 <button class="btn btn-sm" data-action="resend-muse-errors" data-muse-action="retry" title="Gửi input + danh sách lỗi để Muse trả JSON đã sửa">
+                   Gửi lỗi cho Muse sửa
+                 </button>
+               </div>`
+            : ''
+        }
       </div>
     </div>`;
 }
@@ -1845,6 +1854,8 @@ function updateMuseActionButtons() {
       button.disabled = !unlocked || !online || !ready || !isMuseBridgeReady() || Boolean(state.busy.bridge);
     } else if (kind === 'import') {
       button.disabled = !unlocked || !online || !ready || Boolean(state.busy.import);
+    } else if (kind === 'retry') {
+      button.disabled = !unlocked || !online || !ready || !isMuseBridgeReady() || Boolean(state.busy.bridge);
     }
   });
   const wrapper = document.getElementById('museGateWrap');
@@ -1980,6 +1991,16 @@ function museConfigFormHtml() {
           </div>
 
           <div class="muse-config-section">
+            <strong>Rule Muse (não chính)</strong>
+            <span class="small text-faint">Dán rule chi tiết do Muse viết. Rule được chèn vào đầu mỗi prompt gửi Muse. Gắn rule sẽ tự tắt plan mẫu test.</span>
+          </div>
+          <div class="field">
+            <label for="museRulePrompt">Rule / prompt bổ sung</label>
+            <textarea class="textarea" id="museRulePrompt" name="rule_prompt" rows="7" placeholder="Ví dụ: Luôn mở đầu bằng hook 3 giờ sáng; ưu tiên meme GIF; giữ nhịp 5–8 giây mỗi bình luận...">${esc(muse.rule?.prompt || '')}</textarea>
+            <span class="hint">Để trống nếu chưa có rule. Prompt contract + validator vẫn hoạt động.</span>
+          </div>
+
+          <div class="muse-config-section">
             <strong>Bridge gửi/nhận kế hoạch (tùy chọn)</strong>
             <span class="small text-faint">Để trống thì dùng luồng dán JSON thủ công. Không tự tạo kết quả nếu Muse không trả JSON.</span>
           </div>
@@ -2048,6 +2069,7 @@ function museConfigPayload(form) {
       response_selector: String(data.get('bridge_response_selector') || ''),
       wait_timeout_ms: Number(data.get('bridge_wait_timeout_ms')) || 180000,
     },
+    rule: { prompt: String(data.get('rule_prompt') || '') },
   };
 }
 
@@ -2822,7 +2844,7 @@ async function importManualMuse() {
   await importPlanRaw(raw, 'muse', { successMessage: 'Muse trả kế hoạch hợp lệ. Hãy xem/sửa rồi duyệt.' });
 }
 
-async function sendToMuse() {
+async function sendToMuse(errors = []) {
   if (!inputReady()) {
     showToast('Input chưa sẵn sàng.', 'warn');
     return;
@@ -2832,7 +2854,7 @@ async function sendToMuse() {
     renderWorkflow();
     const data = await api('/api/muse/bridge/send', {
       method: 'POST',
-      json: { webContentsId: state.museWebviewId || null, input: state.planInput },
+      json: { webContentsId: state.museWebviewId || null, input: state.planInput, errors },
     });
     const raw = data.raw || '';
     state.manualResponse = raw;
@@ -2848,6 +2870,17 @@ async function sendToMuse() {
     renderWorkflow();
     showToast(error.message, 'error', 8000);
   }
+}
+
+async function resendErrorsToMuse() {
+  const errors = (state.planErrors || [])
+    .map((error) => `${error.code || 'PLAN_ERROR'} ${error.path || ''}: ${error.message || ''}`.trim())
+    .filter(Boolean);
+  if (!errors.length) {
+    showToast('Không có danh sách lỗi để gửi Muse.', 'warn');
+    return;
+  }
+  await sendToMuse(errors);
 }
 
 function collectPlanFromState() {
@@ -3584,6 +3617,11 @@ async function onDocumentClick(event) {
   if (action === 'import-muse') {
     event.preventDefault();
     await importManualMuse();
+    return;
+  }
+  if (action === 'resend-muse-errors') {
+    event.preventDefault();
+    await resendErrorsToMuse();
     return;
   }
   if (action === 'import-sample') {

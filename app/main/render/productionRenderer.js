@@ -5,6 +5,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { captureThreadScreenshots } = require('../threads/screenshot');
+const { assertScreenshotCoverage } = require('./productionGuards');
 
 const WIDTH = 576;
 const HEIGHT = 1024;
@@ -161,14 +162,7 @@ async function render(ctx) {
     ctx.job.screenshots = screenshots;
     ctx.job.screenshot_count = Object.keys(screenshots.comments || {}).length + 1;
   }
-  if (!screenshots.post) throw new Error('Thiếu ảnh chụp post; dừng, không dùng thẻ vẽ lại.');
-  for (const segment of segments) {
-    if (!screenshots.comments[segment.comment_id]) {
-      throw new Error(
-        `Thiếu ảnh chụp thật cho bình luận ${segment.comment_id}. Dừng job; không vẽ lại thẻ giả.`,
-      );
-    }
-  }
+  assertScreenshotCoverage(segments, screenshots);
   onProgress('Đã chụp xong; chuẩn bị ffmpeg', 22);
 
   const timings = allocateTimings(segments, targetDuration);
