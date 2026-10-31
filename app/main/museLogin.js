@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const { BrowserWindow, session } = require('electron');
 const { MUSE_PARTITION, hostsMatch } = require('./muse');
+const { INSPECT_SELECTORS_SCRIPT } = require('./museInspect');
 
 const SESSION_COOKIE_HINT = /(sess|token|auth|jwt|sid|login|user|remember)/i;
 const STRONG_LOGIN_COOKIE = /^(c_user|xs|sessionid|session|sid|auth_token|access_token|jwt)$/i;
@@ -241,6 +242,34 @@ class MuseLoginService {
       measuredAt: new Date().toISOString(),
       note:
         'Chỉ đọc tên cookie/khóa lưu trữ để tạo tín hiệu đăng nhập. Tool không lưu giá trị cookie hay mật khẩu. Cookie mới sau baseline an toàn hơn cookie anonymous.',
+    };
+  }
+
+  async inspectSelectors() {
+    if (!this.ruleSlot.isConfigured()) {
+      throw configError('Chưa cấu hình URL Muse. Không thể dò selector.', 'MUSE_NOT_CONFIGURED');
+    }
+    if (!this.window || this.window.isDestroyed()) {
+      throw configError('Hãy mở cửa sổ Muse trước khi dò selector.', 'MUSE_LOGIN_WINDOW_NOT_OPEN');
+    }
+    const win = this.window;
+    await waitForLoad(win.webContents);
+    const url = win.webContents.getURL();
+    if (!hostsMatch(url, this.ruleSlot.allowedOrigin())) {
+      throw configError('Cửa sổ Muse đang mở ngoài domain đã cấu hình.', 'MUSE_WRONG_ORIGIN');
+    }
+    const result = await Promise.race([
+      win.webContents.executeJavaScript(INSPECT_SELECTORS_SCRIPT, true),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(configError('Dò selector quá thời gian.', 'MUSE_INSPECT_TIMEOUT')), 10000),
+      ),
+    ]);
+    return {
+      ok: true,
+      url,
+      title: win.webContents.getTitle(),
+      groups: result?.groups || { inputs: [], sendButtons: [], responses: [], loginHints: [] },
+      inspectedAt: new Date().toISOString(),
     };
   }
 

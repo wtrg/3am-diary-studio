@@ -16,6 +16,7 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 | Cửa sổ đăng nhập Muse + đo cookie phiên | Đã xong; mở đúng `https://muse.ai/` thật + test portal; chưa đăng nhập tài khoản thật |
 | Baseline đăng xuất chống false-unlock | Đã xong; cookie anonymous không được tự chọn |
 | Sao chép prompt Muse (khi chưa có selector) | Đã xong |
+| Dò selector ô nhập/nút gửi/phản hồi từ trang Muse | Đã xong; test trên trang login thật + E2E portal |
 | Threads scraper + login Threads | Đã xong, có live smoke |
 | Tìm bài theo chủ đề (discovery) | Đã xong: ẩn danh/tài khoản, lọc bài mới, điểm xu hướng |
 | Hàng đợi + xem/tải MP4 + lịch sử + retry | Đã xong |
@@ -94,7 +95,8 @@ Bài demo dùng renderer demo (thẻ vẽ, 576×1024@30, 60 giây). **Bài Threa
 3. Bấm **Lưu & mở cửa sổ đăng nhập** **trước khi đăng nhập** → đăng nhập Muse trong cửa sổ riêng (partition `persist:muse`, dùng chung với khung Muse). Tool **không lưu mật khẩu**; đã kiểm tra cửa sổ này mở đúng trang Muse thật.
 4. Trong cửa sổ đó, bấm **Đo phiên hiện tại** tại modal cấu hình. Tool đã chụp **baseline đăng xuất** khi mở cửa sổ; sau khi đăng nhập, nó chỉ gợi ý cookie **mới xuất hiện** hoặc cookie phiên mạnh (`c_user`, `xs`, `sessionid`…). Cookie anonymous như `hatch_native_auth_*` **không được tự chọn**.
 5. Chọn đúng cookie (và/hoặc bấm **Dùng URL đăng nhập** nếu URL đổi) → **Dùng tín hiệu đã chọn & lưu**. Tool lưu vào `config/muse_rule.json`, kiểm tra lại phiên và mở khóa Muse.
-6. Nếu chưa biết selector bridge, bấm **Sao chép prompt gửi Muse**, dán sang Muse (khung hoặc cửa sổ), rồi dán JSON trả về vào ô “Dán kết quả Muse”.
+6. Nếu chưa biết selector bridge: trong Cấu hình Muse bấm **Dò selector trang Muse** → chọn ứng viên cho ô nhập/nút gửi/vùng phản hồi, hoặc bấm **Sao chép prompt gửi Muse** để dán thủ công. Inspector chỉ trả selector + nhãn, không trả nội dung tin nhắn.
+7. Đã kiểm tra inspector trên trang login Muse thật: tìm được ô `Mobile number or email` và nút `Log in`. Trong chat Muse thật, dò sau khi đăng nhập để lấy selector chat.
 
 Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không cần tắt app sau khi lưu UI; **Tải lại cấu hình** đọc lại file.
 

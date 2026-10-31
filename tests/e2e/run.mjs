@@ -340,6 +340,11 @@ try {
   assert.ok(measuredCookies.checked.includes('muse_test_session'), 'new login cookie is preselected as login signal');
   assert.match(measuredCookies.note, /baseline đăng xuất/i, 'measurement reports the logged-out baseline');
   await cdp.screenshot('04a-muse-session-measured.png');
+
+  await cdp.eval(`document.querySelector('[data-action="inspect-muse"]').click()`);
+  await waitFor(() => cdp.eval(`document.querySelectorAll('#museSelectorResult .selector-row').length > 0`), { label: 'Muse selector inspection' });
+  const inspectedText = await cdp.eval(`document.getElementById('museSelectorResult')?.innerText || ''`);
+  assert.match(inspectedText, /muse-login/, 'selector inspector finds the login control on the Muse page');
   await cdp.eval(`document.querySelector('[data-action="apply-muse-measurement"]').click()`);
   await waitFor(() => cdp.eval(`document.getElementById('museChip')?.textContent.includes('đã đăng nhập')`), { label: 'Muse login verification after measurement' });
   const measuredLoginStatus = await apiGet('/api/muse/status');

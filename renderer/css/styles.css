@@ -2699,6 +2699,28 @@ a {
   background: rgba(255, 255, 255, 0.035);
 }
 
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 9px;
+  margin-top: 9px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.selector-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 3px 0;
+}
+
+.selector-row code {
+  flex: 1 1 100%;
+  word-break: break-all;
+}
+
 @media (max-width: 720px) {
   .muse-config-grid {
     grid-template-columns: 1fr;

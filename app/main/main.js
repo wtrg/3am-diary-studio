@@ -81,6 +81,7 @@ app.whenReady().then(async () => {
       openThreadsLoginWindow: () => openThreadsLoginWindow(mainWindow),
       openMuseLoginWindow: () => museLogin.open(),
       measureMuseSession: () => museLogin.measure(),
+      inspectMusePage: () => museLogin.inspectSelectors(),
       isOnline: () => {
         if (process.env.E2E_TEST) return true;
         try {

@@ -135,6 +135,17 @@ function createHarness(t) {
     },
     threadsLoginState: async () => ({ loggedIn: threadsControl.loggedIn, checked: true }),
     openThreadsLoginWindow: async () => ({ opened: true }),
+    inspectMusePage: async () => ({
+      ok: true,
+      url: 'https://muse.test/chat',
+      title: 'Muse',
+      groups: {
+        inputs: [{ selector: '#chat-input', label: 'Chat input', tag: 'textarea' }],
+        sendButtons: [{ selector: '#chat-send', label: 'Send', tag: 'button' }],
+        responses: [{ selector: '#chat-response', label: 'Response', tag: 'div' }],
+        loginHints: [],
+      },
+    }),
     isOnline: () => true,
     quit: () => {},
     openDataFolder: () => {},
@@ -300,6 +311,11 @@ test('full API flow: gate, strict validation, manual edit, queue, retry, export'
   });
   assert.equal(promptRoute.status, 200);
   assert.match(promptRoute.data.prompt, /TEXT_MISMATCH: c1/);
+
+  const inspected = await h.request('/api/muse/inspect', { method: 'POST', json: {} });
+  assert.equal(inspected.status, 200);
+  assert.equal(inspected.data.groups.inputs[0].selector, '#chat-input');
+  assert.equal(inspected.data.groups.sendButtons[0].selector, '#chat-send');
 });
 
 test('scrape failures are surfaced without overwriting the current post', async (t) => {

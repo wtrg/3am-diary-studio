@@ -2038,6 +2038,16 @@ function museConfigFormHtml() {
               <input class="input" id="museResponseSelector" name="bridge_response_selector" value="${esc(bridge.responseSelector || '')}" placeholder="[data-message='assistant']" />
             </div>
           </div>
+          <div class="muse-config-section">
+            <strong>Dò selector từ trang Muse</strong>
+            <span class="small text-faint">Mở cửa sổ Muse (đã đăng nhập càng tốt), bấm Dò selector, rồi chọn ứng viên cho ô nhập / nút gửi / vùng phản hồi. Chỉ trả selector và nhãn, không trả nội dung tin nhắn.</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-sm" type="button" data-action="inspect-muse">Dò selector trang Muse</button>
+          </div>
+          <div class="muse-measure-box" id="museSelectorResult">
+            <div class="small text-faint">Chưa dò selector. Hãy mở cửa sổ Muse trước.</div>
+          </div>
           <p class="small text-faint">Mật khẩu Muse chỉ nhập trong cửa sổ đăng nhập. Tool không lưu mật khẩu dưới dạng văn bản.</p>
         </div>
         <div class="modal-foot">
@@ -2157,6 +2167,70 @@ function renderMuseMeasurement(result) {
       ${result.suggestedUrlContains ? `<button class="btn btn-sm" type="button" data-action="use-muse-url" data-url="${esc(result.suggestedUrlContains)}">Dùng URL đăng nhập ${esc(result.suggestedUrlContains)}</button>` : ''}
       <button class="btn btn-sm btn-primary" type="button" data-action="apply-muse-measurement">Dùng tín hiệu đã chọn &amp; lưu</button>
     </div>`;
+}
+
+function renderMuseSelectorResult(result) {
+  const host = document.getElementById('museSelectorResult');
+  if (!host) return;
+  const groups = [
+    ['inputs', 'Ô nhập', 'bridge_input_selector'],
+    ['sendButtons', 'Nút gửi', 'bridge_send_selector'],
+    ['responses', 'Vùng phản hồi', 'bridge_response_selector'],
+    ['loginHints', 'Tín hiệu đăng nhập', 'logged_in_selectors'],
+  ];
+  const body = groups
+    .map(([key, label, target]) => {
+      const items = Array.isArray(result.groups?.[key]) ? result.groups[key] : [];
+      if (!items.length) return '';
+      return `
+        <div class="selector-group">
+          <strong class="small">${esc(label)}</strong>
+          ${items
+            .map(
+              (item) => `
+            <div class="selector-row">
+              <code class="mono-small">${esc(item.selector)}</code>
+              <span class="small text-faint">${esc(item.label || '')}</span>
+              <button class="btn btn-sm" type="button" data-action="use-muse-selector" data-target="${esc(target)}" data-selector="${esc(item.selector)}">Dùng</button>
+            </div>`,
+            )
+            .join('')}
+        </div>`;
+    })
+    .filter(Boolean)
+    .join('');
+  host.innerHTML = `
+    <div class="small text-faint">${esc(result.url || '')}${result.title ? ` · ${esc(result.title)}` : ''}</div>
+    ${body || '<div class="small text-amber">Không thấy selector phù hợp trên trang hiện tại. Hãy đăng nhập/mở đúng trang chat Muse rồi dò lại.</div>'}
+  `;
+}
+
+async function inspectMuseSelectors(button) {
+  const host = document.getElementById('museSelectorResult');
+  if (host) host.innerHTML = '<div class="small text-faint">Đang dò selector...</div>';
+  if (button) button.disabled = true;
+  try {
+    const result = await api('/api/muse/inspect', { method: 'POST', json: {} });
+    renderMuseSelectorResult(result);
+  } catch (error) {
+    if (host) host.innerHTML = `<div class="small text-amber">${esc(error.message)}</div>`;
+    showToast(error.message, 'error', 6500);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function useMuseSelector(button) {
+  const selector = button?.dataset?.selector || '';
+  const target = button?.dataset?.target || '';
+  const form = button?.closest('form[data-form="muse-config"]');
+  if (!form || !selector || !target) return;
+  const input = form.querySelector(`[name="${target}"]`);
+  if (!input) return;
+  const values = commaList(input.value);
+  if (!values.includes(selector)) values.push(selector);
+  input.value = values.join(', ');
+  showToast(`Đã điền selector vào ${target}.`, 'ok', 3000);
 }
 
 async function measureMuseSessionUi(button) {
@@ -3707,6 +3781,16 @@ async function onDocumentClick(event) {
   if (action === 'measure-muse-session') {
     event.preventDefault();
     await measureMuseSessionUi(actionEl);
+    return;
+  }
+  if (action === 'inspect-muse') {
+    event.preventDefault();
+    await inspectMuseSelectors(actionEl);
+    return;
+  }
+  if (action === 'use-muse-selector') {
+    event.preventDefault();
+    useMuseSelector(actionEl);
     return;
   }
   if (action === 'use-muse-url') {

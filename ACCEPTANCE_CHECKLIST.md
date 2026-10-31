@@ -111,6 +111,8 @@ Phần chưa hoàn tất đúng phạm vi phase này: rule Muse chi tiết, kế
 | Đo cookie phiên thật, không lưu giá trị | PASS | E2E: baseline đăng xuất → cookie mới `muse_test_session` được gợi ý; gate mở |
 | Không false-unlock bởi cookie anonymous | PASS | Probe muse.ai: `hatch_native_auth_*` có trước/sau baseline nhưng `suggestedCookieNames=[]`; chỉ cookie mới/strong được chọn |
 | Sao chép prompt Muse khi chưa có selector | PASS | Route `/api/muse/prompt` + nút UI; unit/integration test prompt chứa contract/lỗi |
+| Dò selector Muse | PASS | `/api/muse/inspect` + UI; tìm được input/login trên muse.ai thật; E2E tìm `#muse-login` trên portal |
+| Dùng selector dò được cho bridge | PASS | Nút “Dùng” điền vào ô bridge tương ứng; lưu qua API cấu hình |
 | Không tự nhận đăng nhập khi còn ô mật khẩu | PASS | UI không tự check cookie khi `hasPasswordField=true` |
 | Prompt gửi Muse có contract + rule + lỗi | PASS | Unit test `buildPrompt`; E2E bridge trả plan hợp lệ |
 | Chụp post/comment thật, cắt đúng khung | PASS (live) | `.sample/live-prod-screens/post.png` + 3 comment PNG từ job production |

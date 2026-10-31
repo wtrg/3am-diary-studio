@@ -186,6 +186,9 @@ class LocalServer {
     this.measureMuseSession = options.measureMuseSession || (async () => {
       throw httpError(501, 'MUSE_SESSION_MEASURE_UNAVAILABLE', 'Chưa khởi tạo được bộ đo phiên Muse.');
     });
+    this.inspectMusePage = options.inspectMusePage || (async () => {
+      throw httpError(501, 'MUSE_INSPECT_UNAVAILABLE', 'Chưa khởi tạo được bộ dò selector Muse.');
+    });
     this.threadsDiscoverBusy = false;
     this.isOnline = options.isOnline || (() => true);
     this.quit = options.quit || (() => {});
@@ -472,6 +475,10 @@ class LocalServer {
     }
     if (pathname === '/api/muse/session/measure' && method === 'POST') {
       const result = await this.measureMuseSession();
+      return json(res, 200, result);
+    }
+    if (pathname === '/api/muse/inspect' && method === 'POST') {
+      const result = await this.inspectMusePage();
       return json(res, 200, result);
     }
     if (pathname === '/api/muse/verify' && method === 'POST') {
