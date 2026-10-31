@@ -131,7 +131,7 @@ Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không
 ```
 
 - **`muse.url`** + ít nhất một tín hiệu đăng nhập (`cookie_names` hoặc selector) mới bật được khung Muse và gate. Không cấu hình thì tool khóa Muse — đây là chủ ý, **không có chế độ “coi như đã đăng nhập”**.
-- Nút **Tải lại cấu hình** trong Bước 3 đọc lại file mà không cần tắt app.
+- Nút **Tải lại cấu hình** trong Bước 3 đọc lại file mà không cần tắt app. Tool cũng tự nhận thay đổi `muse_rule.json` khi mở Cấu hình/kiểm tra trạng thái.
 - Nếu điền `input_selector`, `send_selector`, `response_selector`, nút **Gửi input & nhận kế hoạch từ Muse** dùng bridge tự động. Không thì dùng copy JSON → Muse → dán JSON về.
 - **Prompt gửi Muse** do `MuseRuleSlot.buildPrompt` ghép: contract JSON, ràng buộc text nguyên văn/ID hợp lệ, rule bổ sung (nếu có) và danh sách lỗi lần trước (nếu có). Nội dung chọn bình luận/meme/nhạc vẫn do Muse quyết; frontend không tự quyết.
 - **`rule.prompt` sửa được ngay trong “Cấu hình Muse”** (ô “Rule / prompt bổ sung”) hoặc trong file. Rule được chèn vào đầu prompt gửi Muse; phiên bản tự tăng khi nội dung đổi. Mặc định đang trống.
@@ -239,7 +239,7 @@ node_modules/electron/dist/electron.exe scripts/live-threads-discover.js "mèo" 
 ## 8. Kiểm thử
 
 ```bash
-npm test                  # 42 unit + integration test: contract, library, parser, discovery, Muse config/prompt, voice/TTS, screenshot guard, gate, job retry, download
+npm test                  # 43 unit + integration test: contract, library, parser, discovery, Muse config/prompt, voice/TTS, screenshot guard, gate, job retry, download
 npm run test:e2e          # Electron thật: cấu hình Muse trong UI → mở cửa sổ login → đo cookie → bridge → render MP4
 npm run test:live-production  # LIVE: Threads thật → job queue → chụp post/comment thật → production MP4
 ```

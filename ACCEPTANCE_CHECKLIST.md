@@ -127,7 +127,7 @@ Phần chưa hoàn tất đúng phạm vi phase này: rule Muse chi tiết, kế
 | Renderer trộn voice track | PASS | Smoke 60s 576×1024 có audio stream; integration test assert `voiceTrackPath` |
 | Tự đọc tiếng Việt bằng Windows TTS | PASS (Windows) | `Microsoft An` vi-VN; đọc nguyên văn title+comment; smoke `.sample/tts-demo.mp4` 60s có audio |
 | TTS lỗi/thiếu voice → dừng, giữ plan | PASS (code path) | `synthesizeVietnamese` throw; renderer không fallback voice khác |
-| Unit + E2E toàn repo | PASS | 42/42 unit; E2E PASS gồm cấu hình/login đo phiên/bridge/render |
+| Unit + E2E toàn repo | PASS | 43/43 unit; E2E PASS gồm cấu hình/login đo phiên/bridge/render |
 | Voice/TTS tiếng Việt tự sinh | **CHƯA** | Renderer chỉ dùng `voiceTrackPath` nếu có file giọng |
 | Muse thật: mở trang/login window | PASS | `https://muse.ai/` mở đúng; chưa đăng nhập tài khoản thật |
 | Muse thật: đăng nhập + cookie sau login + bridge selector | **CHƯA TEST** | Không có credential/selector thật trong phiên này; người dùng đăng nhập rồi Đo phiên |

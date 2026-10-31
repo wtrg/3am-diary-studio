@@ -62,6 +62,24 @@ class MuseRuleSlot {
   constructor(configFile) {
     this.configFile = configFile;
     this.config = this.read();
+    this.mtimeMs = this.currentMtime();
+  }
+
+  currentMtime() {
+    try {
+      return fs.statSync(this.configFile).mtimeMs;
+    } catch {
+      return 0;
+    }
+  }
+
+  reloadIfChanged() {
+    const mtimeMs = this.currentMtime();
+    if (mtimeMs && mtimeMs !== this.mtimeMs) {
+      this.mtimeMs = mtimeMs;
+      this.config = this.read();
+    }
+    return this.config;
   }
 
   read() {
@@ -97,6 +115,7 @@ class MuseRuleSlot {
 
   reload() {
     this.config = this.read();
+    this.mtimeMs = this.currentMtime();
     return this.config;
   }
 
@@ -215,6 +234,7 @@ class MuseRuleSlot {
     fs.writeFileSync(tempFile, serialized, 'utf8');
     fs.renameSync(tempFile, this.configFile);
     this.config = this.read();
+    this.mtimeMs = this.currentMtime();
     return this.config;
   }
 

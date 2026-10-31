@@ -99,6 +99,19 @@ test('saveConfig stores the Muse rule prompt, bumps its version, and disables sa
   assert.equal(bumped.rule.version, 2);
 });
 
+test('reloadIfChanged picks up an external muse_rule edit without restarting', (t) => {
+  const slot = tempRule(t, { muse: { url: 'https://old.example/', login: {}, bridge: {} }, rule: { prompt: '', version: 0 } });
+  assert.equal(slot.publicInfo().url, 'https://old.example/');
+  const changed = JSON.parse(fs.readFileSync(slot.configFile, 'utf8'));
+  changed.muse.url = 'https://muse.ai/';
+  fs.writeFileSync(slot.configFile, JSON.stringify(changed, null, 2));
+  const future = new Date(Date.now() + 5000);
+  fs.utimesSync(slot.configFile, future, future);
+  slot.reloadIfChanged();
+  assert.equal(slot.publicInfo().url, 'https://muse.ai/');
+  assert.equal(slot.isConfigured(), true);
+});
+
 test('saveConfig rejects non-http URLs and embedded credentials', (t) => {
   const slot = tempRule(t, { muse: { url: '', login: {}, bridge: {} }, rule: { prompt: '', version: 0 } });
   assert.throws(() => slot.saveConfig({ url: 'file:///etc/passwd' }), /http/i);

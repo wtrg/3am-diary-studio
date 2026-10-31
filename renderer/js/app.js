@@ -2084,7 +2084,11 @@ function museConfigFormHtml() {
     </div>`;
 }
 
-function openMuseConfigDialog() {
+async function openMuseConfigDialog() {
+  try {
+    const status = await api('/api/muse/status');
+    state.status.muse = { ...state.status.muse, ...status };
+  } catch {}
   openModal(museConfigFormHtml());
 }
 
@@ -3821,7 +3825,7 @@ async function onDocumentClick(event) {
   }
   if (action === 'config-muse') {
     event.preventDefault();
-    openMuseConfigDialog();
+    await openMuseConfigDialog();
     return;
   }
   if (action === 'open-muse-login') {

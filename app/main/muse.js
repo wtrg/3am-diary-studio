@@ -54,6 +54,7 @@ class MuseGate {
   }
 
   status() {
+    this.rule.reloadIfChanged?.();
     const info = this.rule.publicInfo();
     let reason = '';
     if (!info.configured) reason = 'Chưa cấu hình muse.url trong config/muse_rule.json.';
