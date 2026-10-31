@@ -129,6 +129,10 @@ class MuseLoginService {
       },
     });
     win.setMenuBarVisibility(false);
+    win.on('page-title-updated', (event) => {
+      event.preventDefault();
+      win.setTitle('Đăng nhập Muse');
+    });
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (!/^https?:\/\//i.test(url)) return { action: 'deny' };
       try {
