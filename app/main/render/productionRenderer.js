@@ -13,7 +13,8 @@ const HEIGHT = 1024;
 const FPS = 30;
 const INTRO_SECONDS = 2.6;
 const OUTRO_SECONDS = 1.4;
-const CARD_WIDTH = 528;
+const CARD_WIDTH = 500;
+const CARD_TOP = 100;
 
 function ffmpegBinary() {
   return process.env.FFMPEG_PATH || 'ffmpeg';
@@ -199,7 +200,7 @@ async function render(ctx) {
   );
   let videoChain = 'base';
   filters.push(
-    `[${videoChain}][postcard]overlay=x=(W-w)/2:y=34:enable='between(t,0,${INTRO_SECONDS})'[vpost]`,
+    `[${videoChain}][postcard]overlay=x=(W-w)/2:y=${CARD_TOP}:enable='between(t,0,${INTRO_SECONDS})'[vpost]`,
   );
   videoChain = 'vpost';
 
@@ -218,7 +219,7 @@ async function render(ctx) {
     );
     const next = `vcard${index}`;
     filters.push(
-      `[${videoChain}][${cardLabel}]overlay=x=(W-w)/2:y=34:enable='between(t,${timing.start.toFixed(3)},${timing.end.toFixed(3)})'[${next}]`,
+      `[${videoChain}][${cardLabel}]overlay=x=(W-w)/2:y=${CARD_TOP}:enable='between(t,${timing.start.toFixed(3)},${timing.end.toFixed(3)})'[${next}]`,
     );
     videoChain = next;
 
