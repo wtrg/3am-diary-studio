@@ -21,7 +21,7 @@ Tool dựng video dọc kiểu **3AM Diary**: gameplay chạy nền, thẻ bình
 | Tìm bài theo chủ đề (discovery) | Đã xong: ẩn danh/tài khoản, lọc bài mới, điểm xu hướng |
 | Hàng đợi + xem/tải MP4 + lịch sử + retry | Đã xong |
 | Chụp ảnh post/comment thật, cắt khung | Đã xong, live; thiếu ảnh thì dừng job |
-| Renderer production (thẻ trắng, GIF/clip, SFX, watermark, voice track) | Đã xong; voice do file/Muse cung cấp, chưa tự TTS |
+| Renderer production (thẻ trắng, GIF/clip, SFX, watermark, voice) | Đã xong; tự đọc tiếng Việt bằng Windows TTS hoặc file voice |
 | Prompt gửi Muse (contract + rule slot + lỗi cần sửa) | Đã xong |
 | Rule chi tiết cho Muse | Slot + ô nhập trong app; nội dung rule do Muse cung cấp (đang trống) |
 | Gửi lỗi validate lại cho Muse sửa | Đã xong |
@@ -234,12 +234,12 @@ node_modules/electron/dist/electron.exe scripts/live-threads-discover.js "mèo" 
   - Video 576×1024@30, 60–90 giây: intro post 2.6s, thẻ bình luận đổi theo segment, meme ảnh/**GIF động**/clip video, SFX, nhạc 0.20, watermark + mark 3AM; hỗ trợ `voiceTrackPath` nếu có file giọng.
   - Ảnh chụp mặc định giữ theme sáng của Threads; nếu DOM đổi dark, đặt `THREADS_SCREENSHOT_LIGHT=1` để áp thẻ sáng (chỉ đổi màu, không đổi chữ).
 - Renderer demo vẫn dùng cho dữ liệu demo, không dùng ảnh giả cho bài live. Không dùng AI khác thay Muse để bịa nội dung.
-- Voice/TTS: **chưa tự sinh**. Upload file audio ở Bước 2 với loại **Giọng đọc**, chọn ở Thiết lập video; JobQueue truyền `voiceTrackPath` cho renderer demo và production, trộn trên nhạc nền. Đã smoke-test demo 60s có audio stream.
+- Voice: có 2 cách. (1) Upload file audio **Giọng đọc** và chọn trong Thiết lập; (2) bật **Tự đọc bình luận bằng giọng Việt (Windows)** — dùng voice `Microsoft An` (vi-VN) trên máy, đọc nguyên văn title + comment, không gọi AI khác. Đã smoke-test cả hai: MP4 60s có audio stream. Nếu máy thiếu voice/TTS lỗi, job báo lỗi và giữ plan.
 
 ## 8. Kiểm thử
 
 ```bash
-npm test                  # 41 unit + integration test: contract, library, parser, discovery, Muse config/prompt, voice track, screenshot guard, gate, job retry, download
+npm test                  # 42 unit + integration test: contract, library, parser, discovery, Muse config/prompt, voice/TTS, screenshot guard, gate, job retry, download
 npm run test:e2e          # Electron thật: cấu hình Muse trong UI → mở cửa sổ login → đo cookie → bridge → render MP4
 npm run test:live-production  # LIVE: Threads thật → job queue → chụp post/comment thật → production MP4
 ```
@@ -260,7 +260,7 @@ Test Muse portal (`tests/muse-portal/server.js` + `tests/fixtures/muse_rule.test
 - **Rule Muse chi tiết** vẫn là slot; prompt tự sinh contract + rule bổ sung, không tự chọn nội dung thay Muse.
 - **Threads:** live 2026-10-31, job production qua hàng đợi lấy 7 bình luận công khai, chọn 3, chụp **4 ảnh thật** (post + 3 comment), render 60s 576×1024@30fps ~3.1 MB; thẻ trắng đúng khung, GIF/ảnh meme, SFX, nền, nhạc, watermark. Video/ảnh bằng chứng nằm trong `.sample/` (không commit) và E2E trong `artifacts/` (không commit).
 - **Thiếu ảnh chụp** hoặc DOM Threads đổi cấu trúc → job báo `SCREENSHOT_MATCH_FAILED`, không vẽ thẻ giả, plan được giữ. Guard này có unit test riêng (`productionGuards.test.js`) cho thiếu ảnh post/comment.
-- **Voice/TTS tiếng Việt chưa tự sinh.** Tool hỗ trợ **file giọng đọc** (upload kho, chọn trong Thiết lập); JobQueue truyền `voiceTrackPath` và renderer trộn trên nhạc. Muốn giọng sample, bạn/Muse cần cung cấp file audio.
+- **Voice:** tự đọc dùng Windows voice `Microsoft An` (vi-VN) nếu máy có; không gọi dịch vụ/AI ngoài. Có thể thay bằng file giọng đọc do bạn/Muse cung cấp. Nếu Windows không có voice vi-VN, job báo lỗi rõ, không tự bịa tiếng.
 - **Giao diện thẻ** giữ theme sáng thật của Threads; nếu Threads trả dark theme, bật `THREADS_SCREENSHOT_LIGHT=1` để áp thẻ sáng (không đổi chữ/ảnh).
 - Discovery ẩn danh bị Threads giới hạn tự nhiên (không phải tool cố ý cắt): search logged-out có thể chỉ trả một phần và chặn “Log in for more”. Tool báo đúng số thực tế. Chế độ Tài khoản cần đăng nhập Threads.
 - Đóng gói installer/license, style/typography cuối, xử lý clip meme nâng cao là phase sau.

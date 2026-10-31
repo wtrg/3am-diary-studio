@@ -74,6 +74,7 @@ function buildMuseInput({ post, comments, library, settings }) {
     settings: {
       voice: settings.voice,
       ...(settings.voice_track_id ? { voice_track_id: settings.voice_track_id } : {}),
+      ...(settings.voice_tts ? { voice_tts: true } : {}),
       background_video_id: settings.background_video_id,
       watermark: settings.watermark,
       target_duration: settings.target_duration,

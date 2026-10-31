@@ -6,6 +6,7 @@ const { readJsonSync, writeJsonAtomic } = require('./fsutil');
 const DEFAULT_SETTINGS = {
   voice: '',
   voice_track_id: '',
+  voice_tts: false,
   background_video_id: '',
   watermark: '',
   target_duration: 60,
@@ -121,6 +122,7 @@ class Workspace {
     const next = { ...this.state.settings };
     if (patch.voice !== undefined) next.voice = String(patch.voice);
     if (patch.voice_track_id !== undefined) next.voice_track_id = String(patch.voice_track_id);
+    if (patch.voice_tts !== undefined) next.voice_tts = Boolean(patch.voice_tts);
     if (patch.background_video_id !== undefined) next.background_video_id = String(patch.background_video_id);
     if (patch.watermark !== undefined) next.watermark = String(patch.watermark).slice(0, 120);
     if (patch.target_duration !== undefined) next.target_duration = Number(patch.target_duration);

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
+const { synthesizeVietnamese, buildNarrationText } = require('../tts');
 
 const WIDTH = 576;
 const HEIGHT = 1024;
@@ -200,8 +201,18 @@ async function render(ctx) {
 
   const memes = [];
   let inputIndex = 2;
-  if (ctx.voiceTrackPath && fs.existsSync(ctx.voiceTrackPath)) {
-    inputs.push('-i', ctx.voiceTrackPath);
+  let voiceTrackPath = ctx.voiceTrackPath && fs.existsSync(ctx.voiceTrackPath) ? ctx.voiceTrackPath : null;
+  if (!voiceTrackPath && settings.voice_tts) {
+    const narration = buildNarrationText(plan);
+    if (!narration) throw new Error('Đã bật tự đọc nhưng plan không có nội dung để đọc.');
+    onProgress('Tạo giọng đọc tiếng Việt (Windows TTS)', 6);
+    appendLog?.('TTS: đang đọc nguyên văn title + bình luận bằng voice Windows vi-VN.');
+    voiceTrackPath = path.join(tempDir, 'voice-tts.wav');
+    await synthesizeVietnamese({ text: narration, outputPath: voiceTrackPath });
+    appendLog?.('TTS: đã tạo file giọng đọc.');
+  }
+  if (voiceTrackPath && fs.existsSync(voiceTrackPath)) {
+    inputs.push('-i', voiceTrackPath);
     filterParts.push(`[${inputIndex}:a]atrim=0:${targetDuration},volume=1.0[voice]`);
     audioLabels.push('[voice]');
     inputIndex += 1;

@@ -759,7 +759,14 @@ function settingsCardHtml() {
                 )
                 .join('')}
             </select>
-            <span class="hint">Upload audio ở Bước 2 với loại “Giọng đọc”. Renderer trộn file này trên nhạc nền; tool không tự sinh TTS.</span>
+            <span class="hint">Upload audio ở Bước 2 với loại “Giọng đọc”. File này được ưu tiên hơn tự đọc.</span>
+          </div>
+          <div class="field span-2">
+            <label class="checkbox-wrap">
+              <input class="checkbox" type="checkbox" id="settingsVoiceTts" ${settings.voice_tts ? 'checked' : ''} />
+              <span>Tự đọc bình luận bằng giọng Việt (Windows)</span>
+            </label>
+            <span class="hint">Dùng voice Microsoft An (vi-VN) trên máy, đọc nguyên văn title + bình luận. Không gọi AI khác; nếu không có voice, job báo lỗi và giữ plan.</span>
           </div>
           <div class="field span-2">
             <label for="settingsBackground">Video nền gameplay</label>
@@ -2882,6 +2889,7 @@ async function moveComment(id, direction) {
 async function saveSettings() {
   const voice = document.getElementById('settingsVoice')?.value || '';
   const voiceTrack = document.getElementById('settingsVoiceTrack')?.value || '';
+  const voiceTts = Boolean(document.getElementById('settingsVoiceTts')?.checked);
   const background = document.getElementById('settingsBackground')?.value || '';
   const watermark = document.getElementById('settingsWatermark')?.value || '';
   const target = Number(document.getElementById('settingsDuration')?.value || 60);
@@ -2889,7 +2897,7 @@ async function saveSettings() {
     setBusy('settings', true);
     const data = await api('/api/workspace/settings', {
       method: 'PUT',
-      json: { voice, voice_track_id: voiceTrack, background_video_id: background, watermark, target_duration: target },
+      json: { voice, voice_track_id: voiceTrack, voice_tts: voiceTts, background_video_id: background, watermark, target_duration: target },
     });
     if (data.workspace) state.workspace = data.workspace;
     state.approved = Boolean(state.workspace?.approved_plan);
