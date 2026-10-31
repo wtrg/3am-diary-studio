@@ -138,6 +138,7 @@ Thông tin cũng có thể sửa tay trong file (định dạng dưới). Không
 - **Plan mẫu test tự tắt khi `rule.prompt` có nội dung.** Đây là chốt an toàn: khi rule Muse thật đã gắn, không còn đường tạo kế hoạch test không qua Muse. Có thể tắt sớm hơn bằng `test_options.enable_sample_plan: false`.
 - Khi Muse trả kế hoạch sai, UI có nút **“Gửi lỗi cho Muse sửa”**: gửi lại input + danh sách lỗi validate để Muse trả JSON mới; tool vẫn không tự sửa.
 - Nếu chưa cấu hình bridge selector, **Sao chép prompt gửi Muse** tạo prompt đầy đủ (contract + rule + input + lỗi) để dán thủ công; không cần bridge tự động.
+- Sau khi đo phiên, khung Muse tự tải lại để đồng bộ cookie từ cửa sổ đăng nhập. Bridge hỗ trợ ô nhập thường và contenteditable, chờ nút gửi bật rồi mới bấm.
 - **Baseline đăng xuất:** mở cửa sổ đăng nhập trước khi login. Tool chỉ gợi ý cookie mới/strong session, không gợi ý cookie anonymous `hatch_native_auth_*` của muse.ai. Nếu không có baseline, tool không tự chọn cookie; người dùng chọn tay.
 - Trang login Muse có thể mở popup (OAuth). Main process mở popup cùng partition; không lưu mật khẩu.
 - Đăng nhập/đo phiên dùng chung partition `persist:muse`; cấu hình chỉ lưu **tên** cookie/selector, không lưu giá trị cookie hay mật khẩu.

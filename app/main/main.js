@@ -25,6 +25,7 @@ const { JobQueue } = require('./jobs');
 const { MuseRuleSlot } = require('./museRule');
 const { MuseGate, MUSE_PARTITION } = require('./muse');
 const { MuseLoginService } = require('./museLogin');
+const { INSPECT_SELECTORS_SCRIPT } = require('./museInspect');
 const { DemoService } = require('./demo');
 const {
   scrapeThreads,
@@ -81,7 +82,23 @@ app.whenReady().then(async () => {
       openThreadsLoginWindow: () => openThreadsLoginWindow(mainWindow),
       openMuseLoginWindow: () => museLogin.open(),
       measureMuseSession: () => museLogin.measure(),
-      inspectMusePage: () => museLogin.inspectSelectors(),
+      inspectMusePage: async () => {
+        try {
+          return await museLogin.inspectSelectors();
+        } catch (error) {
+          if (error.code !== 'MUSE_LOGIN_WINDOW_NOT_OPEN') throw error;
+          const contents = museGate.findWebview();
+          if (!contents) throw error;
+          const result = await contents.executeJavaScript(INSPECT_SELECTORS_SCRIPT, true);
+          return {
+            ok: true,
+            url: contents.getURL(),
+            title: contents.getTitle(),
+            groups: result?.groups || { inputs: [], sendButtons: [], responses: [], loginHints: [] },
+            inspectedAt: new Date().toISOString(),
+          };
+        }
+      },
       isOnline: () => {
         if (process.env.E2E_TEST) return true;
         try {

@@ -2266,6 +2266,25 @@ function useMuseUrlSignal(button) {
   showToast(`Đã thêm tín hiệu URL "${url}". Bấm “Dùng tín hiệu đã chọn & lưu” để lưu.`, 'ok', 4500);
 }
 
+function reloadMuseWebviewAndWait(timeoutMs = 12000) {
+  const webview = state.museWebview;
+  if (!webview || !webview.isConnected) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      webview.removeEventListener('dom-ready', finish);
+      webview.removeEventListener('did-fail-load', finish);
+      resolve(true);
+    };
+    webview.addEventListener('dom-ready', finish);
+    webview.addEventListener('did-fail-load', finish);
+    try { webview.reload(); } catch { finish(); }
+    window.setTimeout(finish, timeoutMs);
+  });
+}
+
 async function applyMuseMeasurement(button) {
   const form = button?.closest('form[data-form="muse-config"]');
   if (!form) return;
@@ -2279,6 +2298,12 @@ async function applyMuseMeasurement(button) {
   if (cookieInput) cookieInput.value = checked.join(', ');
   const saved = await saveMuseConfig(form, { keepOpen: false, quiet: true });
   if (!saved) return;
+  // The user usually logs in inside the standalone window. Reload the embedded
+  // frame so it leaves the login page and uses the same persist:muse session.
+  if (state.museWebview && state.museWebview.isConnected) {
+    showToast('Đã lưu tín hiệu. Đang đồng bộ khung Muse...', 'info', 3000);
+    await reloadMuseWebviewAndWait();
+  }
   showToast('Đã lưu tín hiệu đăng nhập. Đang kiểm tra phiên Muse...', 'info', 3500);
   await verifyMuse(true);
 }

@@ -218,7 +218,19 @@ class MuseGate {
         if (!input) return { ok: false, code: 'INPUT_NOT_FOUND' };
         input.focus();
         if (input.isContentEditable) {
-          input.innerText = text;
+          try {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(input);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          } catch {}
+          let inserted = false;
+          try { inserted = document.execCommand('insertText', false, text); } catch {}
+          if (!inserted) {
+            input.textContent = text;
+            input.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType: 'insertText', data: text }));
+          }
           input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
         } else {
           const proto = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -227,9 +239,15 @@ class MuseGate {
           input.dispatchEvent(new Event('input', { bubbles: true }));
           input.dispatchEvent(new Event('change', { bubbles: true }));
         }
+        return { ok: true, editable: Boolean(input.isContentEditable) };
+      })()
+    `;
+    const clickScript = `
+      (() => {
         const button = document.querySelector(${JSON.stringify(bridge.send_selector)});
         if (!button) return { ok: false, code: 'SEND_NOT_FOUND' };
         if (button.disabled || button.getAttribute('aria-disabled') === 'true') return { ok: false, code: 'SEND_DISABLED' };
+        try { button.scrollIntoView({ block: 'center' }); } catch {}
         button.click();
         return { ok: true };
       })()
@@ -238,15 +256,36 @@ class MuseGate {
     try {
       fill = await contents.executeJavaScript(fillScript, true);
     } catch (error) {
-      const wrapped = new Error(`Không gửi được input sang Muse: ${error.message}`);
+      const wrapped = new Error(`Không điền được input sang Muse: ${error.message}`);
       wrapped.statusCode = 500;
       wrapped.code = 'MUSE_SEND_FAILED';
       throw wrapped;
     }
     if (!fill || !fill.ok) {
-      const error = new Error(`Bridge Muse không tìm thấy phần tử cần thiết (${fill?.code || 'UNKNOWN'}).`);
+      const error = new Error(`Bridge Muse không tìm thấy ô nhập (${fill?.code || 'UNKNOWN'}).`);
       error.statusCode = 400;
       error.code = fill?.code || 'MUSE_BRIDGE_FAILED';
+      throw error;
+    }
+    // React editors enable the send button after the input/change events settle.
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    let clicked;
+    try {
+      clicked = await contents.executeJavaScript(clickScript, true);
+      if (clicked?.code === 'SEND_DISABLED') {
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        clicked = await contents.executeJavaScript(clickScript, true);
+      }
+    } catch (error) {
+      const wrapped = new Error(`Không bấm được nút gửi Muse: ${error.message}`);
+      wrapped.statusCode = 500;
+      wrapped.code = 'MUSE_SEND_FAILED';
+      throw wrapped;
+    }
+    if (!clicked || !clicked.ok) {
+      const error = new Error(`Bridge Muse không bấm được nút gửi (${clicked?.code || 'UNKNOWN'}).`);
+      error.statusCode = 400;
+      error.code = clicked?.code || 'MUSE_BRIDGE_FAILED';
       throw error;
     }
 
