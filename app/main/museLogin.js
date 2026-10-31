@@ -148,7 +148,11 @@ class MuseLoginService {
       } catch {}
       return { action: 'deny' };
     });
-    win.once('ready-to-show', () => win.show());
+    win.once('ready-to-show', () => {
+      win.show();
+      win.focus();
+      try { win.moveTop(); } catch {}
+    });
     win.webContents.once('did-finish-load', () => {
       // Capture the pre-login state once, so later measurement can distinguish
       // genuinely new login cookies from Muse's anonymous auth cookies.
