@@ -101,7 +101,7 @@ try {
   await api('/api/workspace/selection', { method: 'PUT', body: { ids: chosen.map((comment) => comment.comment_id) } });
   await api('/api/workspace/settings', {
     method: 'PUT',
-    body: { voice: 'Giọng nữ kể chuyện (ấm, chậm)', background_video_id: 'bg_demo_cozy', watermark: '@3am.diary.demo', target_duration: 60 },
+    body: { voice: 'Giọng nữ kể chuyện (ấm, chậm)', voice_tts: process.env.LIVE_VOICE === '1', background_video_id: 'bg_demo_cozy', watermark: '@3am.diary.demo', target_duration: 60 },
   });
 
   const inputData = await api('/api/plan/input');

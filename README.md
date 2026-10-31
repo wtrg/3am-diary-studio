@@ -242,12 +242,13 @@ node_modules/electron/dist/electron.exe scripts/live-threads-discover.js "mèo" 
 npm test                  # 43 unit + integration test: contract, library, parser, discovery, Muse config/prompt, voice/TTS, screenshot guard, gate, job retry, download
 npm run test:e2e          # Electron thật: cấu hình Muse trong UI → mở cửa sổ login → đo cookie → bridge → render MP4
 npm run test:live-production  # LIVE: Threads thật → job queue → chụp post/comment thật → production MP4
+LIVE_VOICE=1 npm run test:live-production  # thêm tự đọc tiếng Việt (Windows TTS)
 ```
 
 E2E sẽ tạo screenshot và MP4 tại `artifacts/e2e/` (thư mục này **không commit lên repo public**; đặc biệt ảnh live Threads chứa nội dung bên thứ ba):
 `01-gate-locked.png`, `01b-muse-config.png`, `03-invalid-plan-blocked.png`, `04a-muse-session-measured.png`, `04-muse-unlocked.png`, `05-muse-plan.png`, `06-approved.png`, `07-job-done.png`, `11-live-threads.png`, `12-discovery.png`, `13-discovery-selected.png`, `demo-final.mp4`.
 
-`npm run test:live-production` ghi MP4 + ảnh chụp thật vào `.sample/` (không commit) và kiểm tra ffprobe 576×1024/30fps/60s; lần chạy gần nhất lưu 4 ảnh chụp và video ~3.1 MB.
+`npm run test:live-production` ghi MP4 + ảnh chụp thật vào `.sample/` (không commit) và kiểm tra ffprobe 576×1024/30fps/60s. Lần chạy gần nhất với `LIVE_VOICE=1`: 4 ảnh chụp, TTS tiếng Việt, video ~3.25 MB.
 
 Checklist nghiệm thu chi tiết: [`ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md).
 
